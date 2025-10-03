@@ -1,0 +1,48 @@
+# AFNS Bytecode
+# Version: 0.1.0
+
+# String constants
+.string str_5 "World"
+.string str_7 "Hello, "
+.string str_29 "Hello, ApexForge NightScript!"
+.string str_1 "!"
+
+.function apex
+  .locals
+  ;; Variable: message
+  push.string str_29
+  store message
+load message
+  call.function println 1
+.end
+
+.function greet
+  .param name string
+  .returns string
+  .locals
+  ;; Variable: greeting
+  push.string str_7
+  load name
+  add
+  push.string str_1
+  add
+  store greeting
+  ;; Return
+  load greeting
+  ret
+.end
+
+.function main
+  .locals
+  ;; Variable: name
+  push.string str_5
+  store name
+  ;; Variable: greeting
+  load name
+  call.function greet 1
+
+  store greeting
+load greeting
+  call.function println 1
+.end
+

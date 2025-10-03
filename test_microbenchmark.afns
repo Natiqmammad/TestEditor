@@ -1,0 +1,1 @@
+fun test_func(a::i32, b::i32) -> i32 { return a + b; } apex() { var result::i32 = test_func(10, 20); show("Result: " + result); }

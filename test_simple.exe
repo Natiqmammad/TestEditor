@@ -1,0 +1,5 @@
+declare i32 @printf(i8*, ...)
+declare i8* @string_concat(i8*, i8*)
+declare void @show(i8*)
+declare void @println(i8*)
+

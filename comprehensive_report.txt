@@ -1,0 +1,94 @@
+=== DETAILED PERFORMANCE ANALYSIS ===
+Files Compilation Performance:
+
+File: basic_demo_only.afns
+489 examples/basic_demo_only.afns
+447 examples/basic_demo_only.exe
+---
+File: final_comprehensive_demo.afns
+2400 examples/final_comprehensive_demo.afns
+1616 examples/final_comprehensive_demo.exe
+---
+=== ARCHITECTURAL ANALYSIS ===
+
+Compiler Components:
+- Lexer: 431 lines
+- Parser: 1180 lines
+- AST: 585 lines
+- Code Generation: 381 lines
+- Type System: 456 lines
+- Forge Library:   4703 total
+=== ARCHITECTURAL ANALYSIS ===
+
+Compiler Components:
+- Lexer: 431 lines
+- Parser: 1180 lines
+- AST: 585 lines
+- Code Generation: 381 lines
+- Type System: 456 lines
+  4703 total
+=== ARCHITECTURAL ANALYSIS ===
+
+Compiler Components:
+- Lexer: 431 lines
+- Parser: 1180 lines
+- AST: 585 lines
+- Code Generation: 381 lines
+- Type System: 456 lines
+=== ARCHITECTURAL ANALYSIS ===
+
+Compiler Components:
+- Lexer:  lines
+- Parser: 1180 lines
+- AST: 585 lines
+- Code Generation: 381 lines
+- Type System: 456 lines
+- Forge Library files: 14
+=== ARCHITECTURAL ANALYSIS ===
+
+Compiler Components:
+- Lexer: 431 lines
+- Parser: 1180 lines
+- AST: 585 lines
+- Code Generation: 381 lines
+- Type System: 456 lines
+- Forge Library files: 14
+=== WORKING EXAMPLES INVENTORY ===
+
+Successfully Compiled Examples:
+final_comprehensive_demo
+minimal_test
+mathematical_demo
+collections
+ultimate_afns_showcase
+comprehensive_features
+working_ultimate_demo
+advanced_patterns
+function_overloading
+primitives
+debug_test
+builtin_test
+simple_final_demo
+basic_pattern
+string_operations
+working_basic
+comprehensive_working_demo
+minimal_pattern
+pure_afns_demo
+special_types
+complete_afns_demo
+hello_world
+string_test
+final_showcase
+simple_test
+simple_complete
+basic_demo_only
+simple_demo
+advanced_afns_demo
+working_advanced_demo
+pattern_test
+pattern_matching_demo
+
+Generated Executables:
+12
+executable files generated

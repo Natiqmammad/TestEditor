@@ -1,0 +1,4 @@
+AFNS File Size vs Generated Code Ratio:
+: 15 bytes -> simple_test.exe: 147 bytes (Ratio: 9.80x)
+: 268 bytes -> working_basic.exe: 277 bytes (Ratio: 1.03x)
+: 948 bytes -> final_showcase.exe: 905 bytes (Ratio: .95x)
