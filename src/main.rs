@@ -9,6 +9,7 @@ mod type_system;
 mod codegen;
 mod interpreter;
 mod flutter_integration;
+mod apexlang;
 
 // AFNS Standard Library Integration
 #[cfg(feature = "forge")]
@@ -86,6 +87,13 @@ enum Commands {
         /// Files to check
         files: Vec<PathBuf>,
     },
+
+    /// Evaluate APEXLANG source files
+    Apex {
+        /// ApexLang source file to evaluate
+        #[arg(short, long)]
+        input: PathBuf,
+    },
 }
 
 fn main() -> Result<()> {
@@ -107,6 +115,7 @@ fn main() -> Result<()> {
         Commands::Check { files } => {
             check_command(files)
         }
+        Commands::Apex { input } => apex_command(input),
     }
 }
 
@@ -264,7 +273,7 @@ fn test_command(files: Vec<PathBuf>, parallel: bool) -> Result<()> {
 
 fn check_command(files: Vec<PathBuf>) -> Result<()> {
     println!("Checking syntax for {} files", files.len());
-    
+
     for file in files {
         if !file.exists() {
             eprintln!("Warning: File {:?} does not exist", file);
@@ -287,6 +296,14 @@ fn check_command(files: Vec<PathBuf>) -> Result<()> {
             }
         }
     }
-    
+
+    Ok(())
+}
+
+fn apex_command(input: PathBuf) -> Result<()> {
+    println!("Evaluating APEXLANG source: {:?}", input);
+    let source = fs::read_to_string(&input)?;
+    let value = apexlang::evaluate_source(&source)?;
+    println!("Result: {}", value);
     Ok(())
 }

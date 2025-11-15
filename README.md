@@ -2,6 +2,20 @@
 
 ApexForge NightScript is a hybrid programming language designed for system programming and high-level applications. It combines the performance of low-level languages with the productivity of high-level languages, featuring a unique syntax and comprehensive type system.
 
+## APEXLANG Design Exploration
+
+In addition to AFNS, the repository now tracks the design of **APEXLANG**, a low-level systems language targeting deterministic and high-performance mathematical workloads. Review the full specification, including syntax snapshots, compilation pipeline, and roadmap, in [`APEXLANG_DESIGN.md`](APEXLANG_DESIGN.md).
+
+### ApexLang Prototype Interpreter
+
+The repository ships with a tiny prototype interpreter that understands the MVP syntax described in the design document. Point it at an ApexLang source file containing a single `fn apex() { return <expr>; }` function to evaluate the arithmetic expression:
+
+```bash
+cargo run --bin afns -- apex --input examples/apex/demo.apx
+```
+
+The interpreter reports the computed result on stdout, making it easy to experiment with early language ideas.
+
 ## Features
 
 ### Unique Syntax
