@@ -8,7 +8,7 @@ In addition to AFNS, the repository now tracks the design of **APEXLANG**, a low
 
 ### ApexLang Prototype Interpreter
 
-The repository ships with a tiny prototype interpreter that understands the MVP syntax described in the design document. Point it at an ApexLang source file containing a single `fn apex() { return <expr>; }` function to evaluate the arithmetic expression:
+The repository ships with a tiny prototype interpreter that understands the MVP syntax described in the design document. Point it at an ApexLang source file containing a single `fn apex() { return <expr>; }` function to evaluate the arithmetic expression. The evaluator now understands both integer and floating-point literals, widens mixed arithmetic automatically, and supports `%` modulo semantics alongside the basic `+ - * /` operators:
 
 ```bash
 cargo run --bin afns -- apex --input examples/apex/demo.apx

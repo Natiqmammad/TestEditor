@@ -223,7 +223,7 @@ fn apex() {
 ```
 
 ## 31. Prototype Interpreter
-- **Scope**: Parses a single `fn apex() { return <expr>; }` function and evaluates arithmetic expressions with `+`, `-`, `*`, `/`, parentheses, and unary `+/-`.
+- **Scope**: Parses a single `fn apex() { return <expr>; }` function and evaluates arithmetic expressions with `+`, `-`, `*`, `/`, `%`, parentheses, and unary `+/-`. Integer and floating-point literals are distinguished, with mixed expressions widening to floating point automatically.
 - **Implementation**: Hand-written lexer, recursive-descent parser, and expression evaluator located in `src/apexlang/`.
 - **Usage**:
   ```bash

@@ -13,6 +13,7 @@ pub enum TokenKind {
     Fn,
     Return,
     Identifier(String),
+    Integer(i64),
     Number(f64),
     LParen,
     RParen,
@@ -23,6 +24,7 @@ pub enum TokenKind {
     Minus,
     Star,
     Slash,
+    Percent,
     Eof,
 }
 
@@ -87,19 +89,35 @@ pub fn lex(source: &str) -> Result<Vec<Token>, ApexError> {
                     }
                 }
 
-                let value: f64 = number.parse().map_err(|_| {
-                    ApexError::new(format!(
-                        "Invalid number literal '{}' at line {}, column {}",
-                        number, line, start_col
-                    ))
-                })?;
+                if has_dot {
+                    let value: f64 = number.parse().map_err(|_| {
+                        ApexError::new(format!(
+                            "Invalid number literal '{}' at line {}, column {}",
+                            number, line, start_col
+                        ))
+                    })?;
 
-                tokens.push(Token {
-                    kind: TokenKind::Number(value),
-                    lexeme: number,
-                    line,
-                    column: start_col,
-                });
+                    tokens.push(Token {
+                        kind: TokenKind::Number(value),
+                        lexeme: number,
+                        line,
+                        column: start_col,
+                    });
+                } else {
+                    let value: i64 = number.parse().map_err(|_| {
+                        ApexError::new(format!(
+                            "Invalid integer literal '{}' at line {}, column {}",
+                            number, line, start_col
+                        ))
+                    })?;
+
+                    tokens.push(Token {
+                        kind: TokenKind::Integer(value),
+                        lexeme: number,
+                        line,
+                        column: start_col,
+                    });
+                }
             }
             '(' => {
                 tokens.push(Token {
@@ -201,6 +219,16 @@ pub fn lex(source: &str) -> Result<Vec<Token>, ApexError> {
                     i += 1;
                     column += 1;
                 }
+            }
+            '%' => {
+                tokens.push(Token {
+                    kind: TokenKind::Percent,
+                    lexeme: ch.to_string(),
+                    line,
+                    column,
+                });
+                i += 1;
+                column += 1;
             }
             _ => {
                 return Err(ApexError::new(format!(

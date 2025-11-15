@@ -1,4 +1,4 @@
-use crate::apexlang::ast::{BinaryOp, Expr, Function, Program, Statement, UnaryOp};
+use crate::apexlang::ast::{BinaryOp, Expr, Function, Program, Statement, UnaryOp, Value};
 use crate::apexlang::error::ApexError;
 use crate::apexlang::lexer::{self, Token, TokenKind};
 
@@ -81,6 +81,9 @@ impl Parser {
             } else if self.match_kind(TokenKind::Slash) {
                 let right = self.parse_unary()?;
                 expr = Expr::Binary(Box::new(expr), BinaryOp::Div, Box::new(right));
+            } else if self.match_kind(TokenKind::Percent) {
+                let right = self.parse_unary()?;
+                expr = Expr::Binary(Box::new(expr), BinaryOp::Mod, Box::new(right));
             } else {
                 break;
             }
@@ -100,10 +103,14 @@ impl Parser {
     }
 
     fn parse_primary(&mut self) -> Result<Expr, ApexError> {
-        if let Some(token) = self.advance_if(|t| matches!(t.kind, TokenKind::Number(_))) {
-            if let TokenKind::Number(value) = token.kind {
-                return Ok(Expr::Number(value));
-            }
+        if let Some(token) =
+            self.advance_if(|t| matches!(t.kind, TokenKind::Number(_) | TokenKind::Integer(_)))
+        {
+            return Ok(match token.kind {
+                TokenKind::Number(value) => Expr::Literal(Value::Number(value)),
+                TokenKind::Integer(value) => Expr::Literal(Value::Int(value)),
+                _ => unreachable!(),
+            });
         }
 
         if self.match_kind(TokenKind::LParen) {
@@ -148,6 +155,7 @@ impl Parser {
         match (&self.peek().kind, kind) {
             (TokenKind::Identifier(_), TokenKind::Identifier(_)) => true,
             (TokenKind::Number(_), TokenKind::Number(_)) => true,
+            (TokenKind::Integer(_), TokenKind::Integer(_)) => true,
             (left, right) => left == right,
         }
     }
@@ -205,6 +213,7 @@ impl TokenExt for Token {
             TokenKind::Fn => "fn".to_string(),
             TokenKind::Return => "return".to_string(),
             TokenKind::Identifier(_) => "identifier".to_string(),
+            TokenKind::Integer(_) => "integer".to_string(),
             TokenKind::Number(_) => "number".to_string(),
             TokenKind::LParen => "'('".to_string(),
             TokenKind::RParen => "')'".to_string(),
@@ -215,6 +224,7 @@ impl TokenExt for Token {
             TokenKind::Minus => "'-'".to_string(),
             TokenKind::Star => "'*'".to_string(),
             TokenKind::Slash => "'/'".to_string(),
+            TokenKind::Percent => "'%'".to_string(),
             TokenKind::Eof => "end of file".to_string(),
         }
     }

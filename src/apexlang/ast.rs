@@ -16,7 +16,7 @@ pub enum Statement {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
-    Number(f64),
+    Literal(Value),
     Unary(UnaryOp, Box<Expr>),
     Binary(Box<Expr>, BinaryOp, Box<Expr>),
 }
@@ -33,4 +33,29 @@ pub enum BinaryOp {
     Sub,
     Mul,
     Div,
+    Mod,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum Value {
+    Int(i64),
+    Number(f64),
+}
+
+impl Value {
+    pub fn as_f64(&self) -> f64 {
+        match self {
+            Value::Int(v) => *v as f64,
+            Value::Number(v) => *v,
+        }
+    }
+}
+
+impl std::fmt::Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Value::Int(v) => write!(f, "{}", v),
+            Value::Number(v) => write!(f, "{}", v),
+        }
+    }
 }
