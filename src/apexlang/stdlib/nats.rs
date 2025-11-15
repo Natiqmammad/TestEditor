@@ -33,6 +33,9 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!(functions, "is_deficient", is_deficient);
     add!(functions, "is_prime", is_prime);
     add!(functions, "is_composite", is_composite);
+    add!(functions, "is_fermat_pseudoprime", is_fermat_pseudoprime);
+    add!(functions, "is_strong_pseudoprime", is_strong_pseudoprime);
+    add!(functions, "miller_rabin_test", miller_rabin_test);
     add!(functions, "is_harshad", is_harshad);
     add!(functions, "is_armstrong", is_armstrong);
     add!(functions, "gcd", gcd);
@@ -59,6 +62,7 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!(functions, "legendre_symbol", legendre_symbol);
     add!(functions, "is_quadratic_residue", is_quadratic_residue);
     add!(functions, "carmichael", carmichael);
+    add!(functions, "is_carmichael", is_carmichael);
 
     registry.register_module("nats", functions);
 }
@@ -125,6 +129,17 @@ fn to_u128(value: &BigInt, name: &str) -> Result<u128, ApexError> {
             name, value
         ))
     })
+}
+
+fn ensure_base_range(base: &BigInt, n: &BigInt, name: &str) -> Result<(), ApexError> {
+    let one = BigInt::one();
+    if base <= &one || base >= n {
+        return Err(ApexError::new(format!(
+            "{} requires base satisfying 1 < base < n",
+            name
+        )));
+    }
+    Ok(())
 }
 
 fn big_one() -> BigInt {
@@ -255,6 +270,78 @@ fn is_composite(args: &[Value]) -> Result<Value, ApexError> {
     let n = expect_nat_arg(args, 0, "is_composite")?;
     let is_prime = is_prime_u128(&n, "is_composite")?;
     Ok(Value::Bool(n > BigInt::one() && !is_prime))
+}
+
+fn is_fermat_pseudoprime(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 2, "is_fermat_pseudoprime")?;
+    let n = expect_nat_arg(args, 0, "is_fermat_pseudoprime")?;
+    let base = expect_nat_arg(args, 1, "is_fermat_pseudoprime")?;
+    if n <= BigInt::from(3u8) {
+        return Ok(Value::Bool(false));
+    }
+    ensure_base_range(&base, &n, "is_fermat_pseudoprime")?;
+    if base.gcd(&n).is_one() {
+        let exponent = &n - BigInt::one();
+        Ok(Value::Bool(mod_pow(base, exponent, n.clone()) == BigInt::one()))
+    } else {
+        Ok(Value::Bool(false))
+    }
+}
+
+fn is_strong_pseudoprime(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 2, "is_strong_pseudoprime")?;
+    let n = expect_nat_arg(args, 0, "is_strong_pseudoprime")?;
+    let base = expect_nat_arg(args, 1, "is_strong_pseudoprime")?;
+    if n <= BigInt::from(3u8) {
+        return Ok(Value::Bool(false));
+    }
+    ensure_base_range(&base, &n, "is_strong_pseudoprime")?;
+    Ok(Value::Bool(strong_probable_prime(&n, &base)))
+}
+
+fn miller_rabin_test(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 2, "miller_rabin_test")?;
+    let n = expect_nat_arg(args, 0, "miller_rabin_test")?;
+    let rounds_value = expect_nat_arg(args, 1, "miller_rabin_test")?;
+    let rounds = to_usize(&rounds_value, "miller_rabin_test")?;
+    if rounds == 0 {
+        return Err(ApexError::new("miller_rabin_test requires at least one round"));
+    }
+    if n <= BigInt::from(3u8) {
+        return Ok(Value::Bool(n == BigInt::from(2u8) || n == BigInt::from(3u8)));
+    }
+    if n.is_even() {
+        return Ok(Value::Bool(false));
+    }
+    let n_u128 = to_u128(&n, "miller_rabin_test")?;
+    let deterministic_bases: [u128; 7] = [2, 3, 5, 7, 11, 13, 17];
+    let mut tests = 0usize;
+    for &candidate in &deterministic_bases {
+        if tests >= rounds {
+            break;
+        }
+        if candidate >= n_u128 {
+            continue;
+        }
+        if !strong_probable_prime(&n, &BigInt::from(candidate)) {
+            return Ok(Value::Bool(false));
+        }
+        tests += 1;
+    }
+    let mut candidate = 19u128;
+    while tests < rounds {
+        let range = n_u128.saturating_sub(3);
+        if range == 0 {
+            break;
+        }
+        let base_value = (candidate % range) + 2;
+        if !strong_probable_prime(&n, &BigInt::from(base_value)) {
+            return Ok(Value::Bool(false));
+        }
+        tests += 1;
+        candidate += 2;
+    }
+    Ok(Value::Bool(true))
 }
 
 fn is_harshad(args: &[Value]) -> Result<Value, ApexError> {
@@ -601,6 +688,32 @@ fn carmichael(args: &[Value]) -> Result<Value, ApexError> {
     Ok(Value::Int(result))
 }
 
+fn is_carmichael(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "is_carmichael")?;
+    let n = expect_nat_arg(args, 0, "is_carmichael")?;
+    if n <= BigInt::from(2u8) {
+        return Ok(Value::Bool(false));
+    }
+    if is_prime_u128(&n, "is_carmichael")? {
+        return Ok(Value::Bool(false));
+    }
+    let factors = prime_factors_u128(&n, "is_carmichael")?;
+    if factors.is_empty() {
+        return Ok(Value::Bool(false));
+    }
+    let n_minus_one = &n - BigInt::one();
+    for (prime, exponent) in factors {
+        if exponent > 1 {
+            return Ok(Value::Bool(false));
+        }
+        let prime_minus_one = BigInt::from(prime - 1);
+        if (&n_minus_one % prime_minus_one) != BigInt::zero() {
+            return Ok(Value::Bool(false));
+        }
+    }
+    Ok(Value::Bool(true))
+}
+
 fn sum_of_divisors(n: &BigInt, name: &str) -> Result<BigInt, ApexError> {
     if n.is_zero() {
         return Ok(big_zero());
@@ -642,6 +755,45 @@ fn mod_pow(mut base: BigInt, mut exp: BigInt, modulus: BigInt) -> BigInt {
         base = (&base * &base) % &modulus;
     }
     result
+}
+
+fn strong_probable_prime(n: &BigInt, base: &BigInt) -> bool {
+    let one = BigInt::one();
+    let two = BigInt::from(2u8);
+    let three = BigInt::from(3u8);
+    if n <= &three {
+        return *n == two || *n == three;
+    }
+    if base <= &one || base >= n {
+        return false;
+    }
+    if n.is_even() {
+        return false;
+    }
+    if !base.gcd(n).is_one() {
+        return false;
+    }
+    let mut d = n.clone() - &one;
+    let mut s = 0u32;
+    while d.is_even() {
+        d >>= 1;
+        s += 1;
+    }
+    let n_minus_one = n - &one;
+    let mut x = mod_pow(base.clone(), d.clone(), n.clone());
+    if x == one || x == n_minus_one {
+        return true;
+    }
+    for _ in 1..s {
+        x = (&x * &x) % n;
+        if x == n_minus_one {
+            return true;
+        }
+        if x == one {
+            return false;
+        }
+    }
+    false
 }
 
 fn extended_gcd(a: BigInt, b: BigInt) -> (BigInt, BigInt, BigInt) {
@@ -768,6 +920,10 @@ mod tests {
         Value::Int(BigInt::from(n))
     }
 
+    fn bool_value(b: bool) -> Value {
+        Value::Bool(b)
+    }
+
     #[test]
     fn sum_digits_handles_bases() {
         let ten = sum_digits(&[uint(98765)]).unwrap();
@@ -851,5 +1007,44 @@ mod tests {
 
         let carmichael_val = carmichael(&[uint(45)]).unwrap();
         assert_eq!(carmichael_val, uint(12));
+    }
+
+    #[test]
+    fn pseudoprime_classifiers_handle_edge_cases() {
+        let fermat = is_fermat_pseudoprime(&[uint(561), uint(2)]).unwrap();
+        assert_eq!(fermat, bool_value(true));
+
+        let fermat_fail = is_fermat_pseudoprime(&[uint(15), uint(2)]).unwrap();
+        assert_eq!(fermat_fail, bool_value(false));
+
+        let strong_fail = is_strong_pseudoprime(&[uint(561), uint(2)]).unwrap();
+        assert_eq!(strong_fail, bool_value(false));
+
+        let strong_pass = is_strong_pseudoprime(&[uint(2047), uint(2)]).unwrap();
+        assert_eq!(strong_pass, bool_value(true));
+
+        let invalid_base = is_fermat_pseudoprime(&[uint(561), uint(561)]);
+        assert!(invalid_base.is_err());
+    }
+
+    #[test]
+    fn miller_rabin_rounds_detect_composites() {
+        let composite = miller_rabin_test(&[uint(1_373_653), uint(3)]).unwrap();
+        assert_eq!(composite, bool_value(false));
+
+        let prime = miller_rabin_test(&[uint(104_729), uint(5)]).unwrap();
+        assert_eq!(prime, bool_value(true));
+
+        let zero_rounds = miller_rabin_test(&[uint(17), uint(0)]);
+        assert!(zero_rounds.is_err());
+    }
+
+    #[test]
+    fn carmichael_predicate_matches_classical_examples() {
+        let carmichael_true = is_carmichael(&[uint(561)]).unwrap();
+        assert_eq!(carmichael_true, bool_value(true));
+
+        let carmichael_false = is_carmichael(&[uint(45)]).unwrap();
+        assert_eq!(carmichael_false, bool_value(false));
     }
 }

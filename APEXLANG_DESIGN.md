@@ -220,7 +220,7 @@ fn apex() {
 - **Advanced Number Theory**: `phi`, `digital_root`, `fact`, `nCr`, `modpow`, `modinv`, sieves, amicable checks, aliquot lengths, Fibonacci, Armstrong numbers, perfect squares, power checks, Möbius function, Legendre symbol, quadratic residue tests.
 
 ## 29. Primality Testing Suite
-- Deterministic primality (`is_prime`), Fermat and Miller-Rabin tests, Carmichael number detection.
+- Deterministic primality (`is_prime`), Fermat and strong pseudoprime classifiers, configurable Miller–Rabin rounds, and Carmichael number detection—all backed by dedicated BigInt regression tests in the `nats` module.
 
 ## 30. Usage Examples
 ```apex
