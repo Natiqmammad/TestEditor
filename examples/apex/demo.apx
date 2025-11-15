@@ -1,3 +1,16 @@
+import nats;
+import nats.btoi;
+import nats.is_prime as prime;
+
+fn weighted_score(value) {
+    var score = nats.gcd(value, 192);
+    score = score * 2;
+    return score + nats.sum_digits(value);
+}
+
 fn apex() {
-    return (1 + 2) * 3 - 4 / 2 + 7 % 4 + 0.5;
+    let base = 270;
+    let enriched = weighted_score(base);
+    let bonus = btoi(prime(97));
+    return enriched + bonus;
 }

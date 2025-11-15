@@ -142,12 +142,22 @@ pub extern "C" fn saxpy_c(n: usize, a: f32, x: *const f32, y: *mut f32) {
 - Establish open community guidelines: Code of Conduct, CONTRIBUTING, and RFC process.
 
 ## 21. MVP Entry Point and Syntax
-- **Entry Point**: `fn apex() { ... }` as the program start.
-- **Minimal Syntax**: Function declarations, numeric literals, arithmetic expressions, return statements.
+- **Entry Point**: `fn apex() { ... }` remains the mandatory program start.
+- **Available Constructs**: Function declarations with parameter lists, `let` (immutable) / `var` (mutable) bindings, numeric and boolean literals, unary/binary arithmetic, comparison and logical operators, assignment statements, and function calls (including user-defined helpers).
 - **Example**:
 ```apex
+import nats;
+import nats.btoi;
+
+fn weighted_score(value) {
+  var score = nats.gcd(value, 192);
+  score = score * 2;
+  return score + nats.sum_digits(value);
+}
+
 fn apex() {
-  return (1 + 2) * 3 - 4 / 2;
+  let base = 270;
+  return weighted_score(base) + btoi(nats.is_prime(97));
 }
 ```
 
@@ -178,8 +188,9 @@ fn apex() {
 - **Performance**: Focus on instanced rendering, level-of-detail, and hot-path highlighting.
 
 ## 25. Extended Math Standard Library
-- **Core**: `fact`, `fib`, `is_armstrong` (temporary floating backing for integers in MVP interpreter).
-- **Future Enhancements**: True integer types, modular arithmetic, power functions, and optimized `linalg` primitives.
+- **Core**: `fact`, `fib`, `is_armstrong`, and the full natural-number toolkit are implemented over arbitrary-precision `BigInt` values in the MVP interpreter.
+- **Validation**: A comprehensive unit-test suite guards modular exponentiation/inversion, Möbius and Legendre arithmetic, aliquot sequences, perfect-square/power detection, and Carmichael computations to guarantee mathematically sound behaviour.
+- **Future Enhancements**: Dedicated width-specific integers, optimized modular arithmetic, and high-performance `linalg` primitives.
 
 ## 26. Syntax Completion and Natural Numbers
 - **Syntax**: Function parameters, call expressions, comparison and logical operators, assignment statements.
@@ -187,19 +198,20 @@ fn apex() {
 - **Future Work**: Dedicated integer widths, overflow policy, modular arithmetic, and math intrinsics.
 
 ## 27. Import System (MVP)
-- **Syntax**: `import module;` declarations at file scope.
-- **Resolution**: Imported functions become part of the global namespace; namespacing planned for future updates.
+- **Syntax**: File-scope `import module;`, `import module.symbol;`, and `import module.symbol as alias;` declarations. Whole-module imports require qualified calls (`nats.gcd(…)`), while symbol imports expose the function under its name or alias.
+- **Resolution**: Module aliases are tracked separately from symbol aliases to avoid namespace collisions. Unimported modules/functions are not visible.
 - **Example**:
 ```apex
 import nats;
+import nats.is_prime as prime;
 
 fn apex() {
-  return gcd(270, 192);
+  return nats.gcd(270, 192) + nats.btoi(prime(97));
 }
 ```
 
 ### Roadmap for Modules
-- Namespaced calls (`nats::gcd`), user-defined modules with types, and static stdlib distribution via package manager.
+- Nested paths, user-defined modules with data types, and distribution of the standard library via the package manager.
 
 ## 28. Natural Numbers Module (`nats`)
 - **Import Patterns**: Whole-module imports, symbol imports, and aliasing.
@@ -222,11 +234,10 @@ fn apex() {
 }
 ```
 
-## 31. Prototype Interpreter
-- **Scope**: Parses a single `fn apex() { return <expr>; }` function and evaluates arithmetic expressions with `+`, `-`, `*`, `/`, `%`, parentheses, and unary `+/-`. Integer and floating-point literals are distinguished, with mixed expressions widening to floating point automatically.
-- **Implementation**: Hand-written lexer, recursive-descent parser, and expression evaluator located in `src/apexlang/`.
+- **Scope**: Parses multiple function declarations, supports `let`/`var` locals, assignment, boolean logic, and module/symbol imports. Integers are backed by arbitrary-precision `BigInt`, with mixed arithmetic widening to floating point as needed. The bundled `nats` module exposes an extensive suite of number-theory helpers (`gcd`, `sum_digits`, `phi`, `modpow`, `legendre_symbol`, …) implemented natively in Rust.
+- **Implementation**: Hand-written lexer, recursive-descent parser, BigInt-aware evaluator, and native-function registry under `src/apexlang/`.
 - **Usage**:
   ```bash
   cargo run --bin afns -- apex --input examples/apex/demo.apx
   ```
-- **Result**: Prints the computed numeric result, enabling rapid experimentation with the MVP language semantics described above.
+- **Result**: Prints the computed result of `fn apex` on stdout, enabling rapid experimentation with language semantics and mathematical algorithms.

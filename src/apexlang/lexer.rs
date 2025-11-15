@@ -1,4 +1,5 @@
 use crate::apexlang::error::ApexError;
+use num_bigint::BigInt;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Token {
@@ -12,19 +13,37 @@ pub struct Token {
 pub enum TokenKind {
     Fn,
     Return,
+    Let,
+    Var,
+    Import,
+    As,
+    True,
+    False,
     Identifier(String),
-    Integer(i64),
+    Integer(BigInt),
     Number(f64),
     LParen,
     RParen,
     LBrace,
     RBrace,
+    Comma,
     Semicolon,
+    Dot,
     Plus,
     Minus,
     Star,
     Slash,
     Percent,
+    Bang,
+    Equal,
+    EqualEqual,
+    BangEqual,
+    Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
+    AndAnd,
+    OrOr,
     Eof,
 }
 
@@ -59,6 +78,12 @@ pub fn lex(source: &str) -> Result<Vec<Token>, ApexError> {
                 let kind = match ident.as_str() {
                     "fn" => TokenKind::Fn,
                     "return" => TokenKind::Return,
+                    "let" => TokenKind::Let,
+                    "var" => TokenKind::Var,
+                    "import" => TokenKind::Import,
+                    "as" => TokenKind::As,
+                    "true" => TokenKind::True,
+                    "false" => TokenKind::False,
                     _ => TokenKind::Identifier(ident.clone()),
                 };
 
@@ -104,7 +129,7 @@ pub fn lex(source: &str) -> Result<Vec<Token>, ApexError> {
                         column: start_col,
                     });
                 } else {
-                    let value: i64 = number.parse().map_err(|_| {
+                    let value = BigInt::parse_bytes(number.as_bytes(), 10).ok_or_else(|| {
                         ApexError::new(format!(
                             "Invalid integer literal '{}' at line {}, column {}",
                             number, line, start_col
@@ -120,89 +145,57 @@ pub fn lex(source: &str) -> Result<Vec<Token>, ApexError> {
                 }
             }
             '(' => {
-                tokens.push(Token {
-                    kind: TokenKind::LParen,
-                    lexeme: ch.to_string(),
-                    line,
-                    column,
-                });
+                tokens.push(simple_token(TokenKind::LParen, ch, line, column));
                 i += 1;
                 column += 1;
             }
             ')' => {
-                tokens.push(Token {
-                    kind: TokenKind::RParen,
-                    lexeme: ch.to_string(),
-                    line,
-                    column,
-                });
+                tokens.push(simple_token(TokenKind::RParen, ch, line, column));
                 i += 1;
                 column += 1;
             }
             '{' => {
-                tokens.push(Token {
-                    kind: TokenKind::LBrace,
-                    lexeme: ch.to_string(),
-                    line,
-                    column,
-                });
+                tokens.push(simple_token(TokenKind::LBrace, ch, line, column));
                 i += 1;
                 column += 1;
             }
             '}' => {
-                tokens.push(Token {
-                    kind: TokenKind::RBrace,
-                    lexeme: ch.to_string(),
-                    line,
-                    column,
-                });
+                tokens.push(simple_token(TokenKind::RBrace, ch, line, column));
                 i += 1;
                 column += 1;
             }
             ';' => {
-                tokens.push(Token {
-                    kind: TokenKind::Semicolon,
-                    lexeme: ch.to_string(),
-                    line,
-                    column,
-                });
+                tokens.push(simple_token(TokenKind::Semicolon, ch, line, column));
+                i += 1;
+                column += 1;
+            }
+            ',' => {
+                tokens.push(simple_token(TokenKind::Comma, ch, line, column));
+                i += 1;
+                column += 1;
+            }
+            '.' => {
+                tokens.push(simple_token(TokenKind::Dot, ch, line, column));
                 i += 1;
                 column += 1;
             }
             '+' => {
-                tokens.push(Token {
-                    kind: TokenKind::Plus,
-                    lexeme: ch.to_string(),
-                    line,
-                    column,
-                });
+                tokens.push(simple_token(TokenKind::Plus, ch, line, column));
                 i += 1;
                 column += 1;
             }
             '-' => {
-                tokens.push(Token {
-                    kind: TokenKind::Minus,
-                    lexeme: ch.to_string(),
-                    line,
-                    column,
-                });
+                tokens.push(simple_token(TokenKind::Minus, ch, line, column));
                 i += 1;
                 column += 1;
             }
             '*' => {
-                tokens.push(Token {
-                    kind: TokenKind::Star,
-                    lexeme: ch.to_string(),
-                    line,
-                    column,
-                });
+                tokens.push(simple_token(TokenKind::Star, ch, line, column));
                 i += 1;
                 column += 1;
             }
             '/' => {
-                // Handle comments starting with //
                 if i + 1 < chars.len() && chars[i + 1] == '/' {
-                    // consume until newline or end
                     i += 2;
                     column += 2;
                     while i < chars.len() && chars[i] != '\n' {
@@ -210,25 +203,113 @@ pub fn lex(source: &str) -> Result<Vec<Token>, ApexError> {
                         column += 1;
                     }
                 } else {
-                    tokens.push(Token {
-                        kind: TokenKind::Slash,
-                        lexeme: ch.to_string(),
-                        line,
-                        column,
-                    });
+                    tokens.push(simple_token(TokenKind::Slash, ch, line, column));
                     i += 1;
                     column += 1;
                 }
             }
             '%' => {
-                tokens.push(Token {
-                    kind: TokenKind::Percent,
-                    lexeme: ch.to_string(),
-                    line,
-                    column,
-                });
+                tokens.push(simple_token(TokenKind::Percent, ch, line, column));
                 i += 1;
                 column += 1;
+            }
+            '!' => {
+                if i + 1 < chars.len() && chars[i + 1] == '=' {
+                    tokens.push(Token {
+                        kind: TokenKind::BangEqual,
+                        lexeme: "!=".to_string(),
+                        line,
+                        column,
+                    });
+                    i += 2;
+                    column += 2;
+                } else {
+                    tokens.push(simple_token(TokenKind::Bang, ch, line, column));
+                    i += 1;
+                    column += 1;
+                }
+            }
+            '=' => {
+                if i + 1 < chars.len() && chars[i + 1] == '=' {
+                    tokens.push(Token {
+                        kind: TokenKind::EqualEqual,
+                        lexeme: "==".to_string(),
+                        line,
+                        column,
+                    });
+                    i += 2;
+                    column += 2;
+                } else {
+                    tokens.push(simple_token(TokenKind::Equal, ch, line, column));
+                    i += 1;
+                    column += 1;
+                }
+            }
+            '<' => {
+                if i + 1 < chars.len() && chars[i + 1] == '=' {
+                    tokens.push(Token {
+                        kind: TokenKind::LessEqual,
+                        lexeme: "<=".to_string(),
+                        line,
+                        column,
+                    });
+                    i += 2;
+                    column += 2;
+                } else {
+                    tokens.push(simple_token(TokenKind::Less, ch, line, column));
+                    i += 1;
+                    column += 1;
+                }
+            }
+            '>' => {
+                if i + 1 < chars.len() && chars[i + 1] == '=' {
+                    tokens.push(Token {
+                        kind: TokenKind::GreaterEqual,
+                        lexeme: ">=".to_string(),
+                        line,
+                        column,
+                    });
+                    i += 2;
+                    column += 2;
+                } else {
+                    tokens.push(simple_token(TokenKind::Greater, ch, line, column));
+                    i += 1;
+                    column += 1;
+                }
+            }
+            '&' => {
+                if i + 1 < chars.len() && chars[i + 1] == '&' {
+                    tokens.push(Token {
+                        kind: TokenKind::AndAnd,
+                        lexeme: "&&".to_string(),
+                        line,
+                        column,
+                    });
+                    i += 2;
+                    column += 2;
+                } else {
+                    return Err(ApexError::new(format!(
+                        "Unexpected character '&' at line {}, column {}",
+                        line, column
+                    )));
+                }
+            }
+            '|' => {
+                if i + 1 < chars.len() && chars[i + 1] == '|' {
+                    tokens.push(Token {
+                        kind: TokenKind::OrOr,
+                        lexeme: "||".to_string(),
+                        line,
+                        column,
+                    });
+                    i += 2;
+                    column += 2;
+                } else {
+                    return Err(ApexError::new(format!(
+                        "Unexpected character '|' at line {}, column {}",
+                        line, column
+                    )));
+                }
             }
             _ => {
                 return Err(ApexError::new(format!(
@@ -247,4 +328,13 @@ pub fn lex(source: &str) -> Result<Vec<Token>, ApexError> {
     });
 
     Ok(tokens)
+}
+
+fn simple_token(kind: TokenKind, ch: char, line: usize, column: usize) -> Token {
+    Token {
+        kind,
+        lexeme: ch.to_string(),
+        line,
+        column,
+    }
 }
