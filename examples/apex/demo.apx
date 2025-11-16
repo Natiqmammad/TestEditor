@@ -14,7 +14,12 @@ fn weighted_score(value) {
 fn apex() {
     let base = 270;
     let enriched = weighted_score(base);
+    let divisor_score = nats.divisors_count(base);
+    let twin = btoi(nats.is_twin_prime(29));
+    let kaprekar = btoi(nats.is_kaprekar(45));
+    let wilson = btoi(nats.wilson_theorem(13));
+    let kaprekar_constant = nats.kaprekar_constant();
     let bonus = btoi(prime(97));
     let energy = math.hypot(3, 4);
-    return enriched + bonus + energy;
+    return enriched + bonus + energy + divisor_score + twin + kaprekar + wilson + kaprekar_constant / 6174;
 }

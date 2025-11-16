@@ -216,8 +216,9 @@ fn apex() {
 ## 28. Natural Numbers Module (`nats`)
 - **Import Patterns**: Whole-module imports, symbol imports, and aliasing.
 - **Utilities**: `btoi`, digit operations, divisor counts, classification helpers.
-- **Relations**: `gcd`, `lcm`, `coprime` and parity helpers.
-- **Advanced Number Theory**: `phi`, `digital_root`, `fact`, `nCr`, `modpow`, `modinv`, sieves, amicable checks, aliquot lengths, Fibonacci, Armstrong numbers, perfect squares, power checks, Möbius function, Legendre symbol, quadratic residue tests.
+- **Relations**: `gcd`, `lcm`, `coprime`, parity helpers, and localized aliases (`is_simple_number`, `is_murekkeb_number`).
+- **Advanced Number Theory**: `phi`, `digital_root`, `fact`, `nCr`, `modpow`, `modinv`, sieves, amicable checks, aliquot lengths, Fibonacci, Armstrong and Harshad predicates, perfect squares, power checks, Möbius function, Legendre symbol, quadratic residue tests, and twin-prime detection via `is_twin_prime`.
+- **Kaprekar & Wilson Tooling**: `kaprekar_constant`, `is_kaprekar`, `kaprekar_6174_steps`, and `wilson_theorem` capture Kaprekar's constant/theorem workflows alongside Wilson's primality certificate so mathematical programs can reason directly about those results.
 - **Floating-Point Companion (`math`)**: Zero-arg constants `pi()`/`e()` and transcendental helpers (`sqrt`, `cbrt`, `hypot`, `pow`, `exp`, `ln`, `log`, `sin`, `cos`, `tan`) live beside the `nats` toolkit so ApexLang code can fluidly combine BigInt-heavy reasoning with analytic workloads.
 
 ## 29. Primality Testing Suite
@@ -225,13 +226,30 @@ fn apex() {
 
 ## 30. Usage Examples
 ```apex
+import math;
 import nats;
-import nats.is_perfect as ip;
+import nats.btoi;
+import nats.is_prime as prime;
+
+fn weighted_score(value) {
+  var score = nats.gcd(value, 192);
+  let curvature = math.sqrt(144);
+  let trig = math.sin(math.pi() / 4);
+  score = score * 2 + curvature;
+  return score + nats.sum_digits(value) + math.pow(trig, 2);
+}
 
 fn apex() {
-  let d = nats.divisors_count(28);
-  let ok = ip(28);
-  return d + nats.btoi(ok);
+  let base = 270;
+  let enriched = weighted_score(base);
+  let divisor_score = nats.divisors_count(base);
+  let twin = btoi(nats.is_twin_prime(29));
+  let kaprekar = btoi(nats.is_kaprekar(45));
+  let wilson = btoi(nats.wilson_theorem(13));
+  let kaprekar_constant = nats.kaprekar_constant();
+  let bonus = btoi(prime(97));
+  let energy = math.hypot(3, 4);
+  return enriched + bonus + energy + divisor_score + twin + kaprekar + wilson + kaprekar_constant / 6174;
 }
 ```
 

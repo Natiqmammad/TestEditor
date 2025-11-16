@@ -33,6 +33,9 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!(functions, "is_deficient", is_deficient);
     add!(functions, "is_prime", is_prime);
     add!(functions, "is_composite", is_composite);
+    add!(functions, "is_simple_number", is_simple_number);
+    add!(functions, "is_murekkeb_number", is_murekkeb_number);
+    add!(functions, "is_twin_prime", is_twin_prime);
     add!(functions, "is_fermat_pseudoprime", is_fermat_pseudoprime);
     add!(functions, "is_strong_pseudoprime", is_strong_pseudoprime);
     add!(functions, "miller_rabin_test", miller_rabin_test);
@@ -46,7 +49,10 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!(functions, "next_even", next_even);
     add!(functions, "next_odd", next_odd);
     add!(functions, "fib", fib);
+    add!(functions, "kaprekar_constant", kaprekar_constant);
+    add!(functions, "is_kaprekar", is_kaprekar);
     add!(functions, "kaprekar_6174_steps", kaprekar_6174_steps);
+    add!(functions, "wilson_theorem", wilson_theorem);
     add!(functions, "phi", phi);
     add!(functions, "digital_root", digital_root);
     add!(functions, "fact", fact);
@@ -272,6 +278,38 @@ fn is_composite(args: &[Value]) -> Result<Value, ApexError> {
     Ok(Value::Bool(n > BigInt::one() && !is_prime))
 }
 
+fn is_simple_number(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "is_simple_number")?;
+    let n = expect_nat_arg(args, 0, "is_simple_number")?;
+    Ok(Value::Bool(is_prime_u128(&n, "is_simple_number")?))
+}
+
+fn is_murekkeb_number(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "is_murekkeb_number")?;
+    let n = expect_nat_arg(args, 0, "is_murekkeb_number")?;
+    let is_prime = is_prime_u128(&n, "is_murekkeb_number")?;
+    Ok(Value::Bool(n > BigInt::one() && !is_prime))
+}
+
+fn is_twin_prime(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "is_twin_prime")?;
+    let n = expect_nat_arg(args, 0, "is_twin_prime")?;
+    if !is_prime_u128(&n, "is_twin_prime")? {
+        return Ok(Value::Bool(false));
+    }
+    let two = BigInt::from(2u8);
+    let mut has_partner = false;
+    if n > two {
+        let lower = &n - &two;
+        has_partner |= is_prime_u128(&lower, "is_twin_prime")?;
+    }
+    if !has_partner {
+        let upper = &n + &two;
+        has_partner = is_prime_u128(&upper, "is_twin_prime")?;
+    }
+    Ok(Value::Bool(has_partner))
+}
+
 fn is_fermat_pseudoprime(args: &[Value]) -> Result<Value, ApexError> {
     ensure_len(args, 2, "is_fermat_pseudoprime")?;
     let n = expect_nat_arg(args, 0, "is_fermat_pseudoprime")?;
@@ -282,7 +320,9 @@ fn is_fermat_pseudoprime(args: &[Value]) -> Result<Value, ApexError> {
     ensure_base_range(&base, &n, "is_fermat_pseudoprime")?;
     if base.gcd(&n).is_one() {
         let exponent = &n - BigInt::one();
-        Ok(Value::Bool(mod_pow(base, exponent, n.clone()) == BigInt::one()))
+        Ok(Value::Bool(
+            mod_pow(base, exponent, n.clone()) == BigInt::one(),
+        ))
     } else {
         Ok(Value::Bool(false))
     }
@@ -305,10 +345,14 @@ fn miller_rabin_test(args: &[Value]) -> Result<Value, ApexError> {
     let rounds_value = expect_nat_arg(args, 1, "miller_rabin_test")?;
     let rounds = to_usize(&rounds_value, "miller_rabin_test")?;
     if rounds == 0 {
-        return Err(ApexError::new("miller_rabin_test requires at least one round"));
+        return Err(ApexError::new(
+            "miller_rabin_test requires at least one round",
+        ));
     }
     if n <= BigInt::from(3u8) {
-        return Ok(Value::Bool(n == BigInt::from(2u8) || n == BigInt::from(3u8)));
+        return Ok(Value::Bool(
+            n == BigInt::from(2u8) || n == BigInt::from(3u8),
+        ));
     }
     if n.is_even() {
         return Ok(Value::Bool(false));
@@ -445,6 +489,31 @@ fn fib(args: &[Value]) -> Result<Value, ApexError> {
     Ok(Value::Int(a))
 }
 
+fn kaprekar_constant(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 0, "kaprekar_constant")?;
+    Ok(Value::Int(BigInt::from(6174u32)))
+}
+
+fn is_kaprekar(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "is_kaprekar")?;
+    let n = expect_nat_arg(args, 0, "is_kaprekar")?;
+    if n.is_zero() || n == BigInt::one() {
+        return Ok(Value::Bool(true));
+    }
+    let square = &n * &n;
+    let ten = BigInt::from(10u8);
+    let mut power = BigInt::one();
+    while power <= square {
+        let right = &square % &power;
+        let left = &square / &power;
+        if !right.is_zero() && left + right == n {
+            return Ok(Value::Bool(true));
+        }
+        power *= &ten;
+    }
+    Ok(Value::Bool(false))
+}
+
 fn kaprekar_6174_steps(args: &[Value]) -> Result<Value, ApexError> {
     ensure_len(args, 1, "kaprekar_6174_steps")?;
     let n = expect_nat_arg(args, 0, "kaprekar_6174_steps")?;
@@ -468,6 +537,22 @@ fn kaprekar_6174_steps(args: &[Value]) -> Result<Value, ApexError> {
         }
     }
     Ok(Value::Int(BigInt::from(steps)))
+}
+
+fn wilson_theorem(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "wilson_theorem")?;
+    let n = expect_nat_arg(args, 0, "wilson_theorem")?;
+    if n <= BigInt::one() {
+        return Ok(Value::Bool(false));
+    }
+    let mut residue = BigInt::one();
+    let mut candidate = BigInt::from(2u8);
+    while candidate < n {
+        residue = (residue * &candidate) % &n;
+        candidate += BigInt::one();
+    }
+    let holds = (residue + BigInt::one()) % &n == BigInt::zero();
+    Ok(Value::Bool(holds))
 }
 
 fn phi(args: &[Value]) -> Result<Value, ApexError> {
@@ -976,6 +1061,42 @@ mod tests {
 
         let invalid = legendre_symbol(&[uint(1), uint(8)]);
         assert!(invalid.is_err());
+    }
+
+    #[test]
+    fn twin_prime_aliases_and_wilson_checks() {
+        let twin = is_twin_prime(&[uint(29)]).unwrap();
+        assert_eq!(twin, bool_value(true));
+
+        let non_twin = is_twin_prime(&[uint(27)]).unwrap();
+        assert_eq!(non_twin, bool_value(false));
+
+        let simple_alias = is_simple_number(&[uint(13)]).unwrap();
+        assert_eq!(simple_alias, bool_value(true));
+
+        let composite_alias = is_murekkeb_number(&[uint(45)]).unwrap();
+        assert_eq!(composite_alias, bool_value(true));
+
+        let wilson_prime = wilson_theorem(&[uint(13)]).unwrap();
+        assert_eq!(wilson_prime, bool_value(true));
+
+        let wilson_composite = wilson_theorem(&[uint(9)]).unwrap();
+        assert_eq!(wilson_composite, bool_value(false));
+    }
+
+    #[test]
+    fn kaprekar_utilities_cover_numbers_and_constant() {
+        let constant = kaprekar_constant(&[]).unwrap();
+        assert_eq!(constant, uint(6174));
+
+        let kaprekar_number = is_kaprekar(&[uint(45)]).unwrap();
+        assert_eq!(kaprekar_number, bool_value(true));
+
+        let non_kaprekar = is_kaprekar(&[uint(10)]).unwrap();
+        assert_eq!(non_kaprekar, bool_value(false));
+
+        let kaprekar_steps = kaprekar_6174_steps(&[uint(3524)]).unwrap();
+        assert_eq!(kaprekar_steps, uint(3));
     }
 
     #[test]

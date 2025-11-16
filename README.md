@@ -8,7 +8,7 @@ In addition to AFNS, the repository now tracks the design of **APEXLANG**, a low
 
 ### ApexLang Prototype Interpreter
 
-The repository ships with a tiny prototype interpreter that understands the MVP syntax described in the design document. The interpreter now supports BigInt-backed integers, floating-point numbers, booleans, local bindings via `let`/`var`, user-defined helper functions, and a lightweight import system. By importing the built-in `nats` module you can call a rich catalogue of number-theory routines (`gcd`, `sum_digits`, `phi`, `modpow`, `is_prime`, …) directly from ApexLang source. Advanced primality helpers—including Fermat and strong pseudoprime predicates, a configurable Miller–Rabin driver, and a Carmichael classifier—round out the toolkit for building mathematically intensive programs.
+The repository ships with a tiny prototype interpreter that understands the MVP syntax described in the design document. The interpreter now supports BigInt-backed integers, floating-point numbers, booleans, local bindings via `let`/`var`, user-defined helper functions, and a lightweight import system. By importing the built-in `nats` module you can call a rich catalogue of number-theory routines (`gcd`, `sum_digits`, `phi`, `divisors_count`, `modpow`, `is_prime`, …) directly from ApexLang source. Advanced primality helpers—including Fermat and strong pseudoprime predicates, a configurable Miller–Rabin driver, a Carmichael classifier, Wilson-theorem verification, Kaprekar classifications, and twin-prime detection—round out the toolkit for building mathematically intensive programs.
 
 For floating-point heavy workloads, the companion `math` module exposes zero-argument constants (`pi()`, `e()`) and a sweep of analytic primitives: `sqrt`, `cbrt`, `hypot`, `pow`, `exp`, `ln`, `log`, `sin`, `cos`, and `tan`. The interpreter automatically widens integers to doubles so programs can blend `math` and `nats` calls in the same expressions without ceremony.
 
@@ -37,9 +37,14 @@ fn weighted_score(value) {
 fn apex() {
     let base = 270;
     let enriched = weighted_score(base);
+    let divisor_score = nats.divisors_count(base);
+    let twin = btoi(nats.is_twin_prime(29));
+    let kaprekar = btoi(nats.is_kaprekar(45));
+    let wilson = btoi(nats.wilson_theorem(13));
+    let kaprekar_constant = nats.kaprekar_constant();
     let bonus = btoi(prime(97));
     let energy = math.hypot(3, 4);
-    return enriched + bonus + energy;
+    return enriched + bonus + energy + divisor_score + twin + kaprekar + wilson + kaprekar_constant / 6174;
 }
 ```
 
