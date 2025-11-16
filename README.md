@@ -8,11 +8,28 @@ In addition to AFNS, the repository now tracks the design of **APEXLANG**, a low
 
 ### ApexLang Prototype Interpreter
 
-The repository ships with a tiny prototype interpreter that understands the MVP syntax described in the design document. The interpreter now supports BigInt-backed integers, floating-point numbers, booleans, local bindings via `let`/`var`, user-defined helper functions, and a lightweight import system. By importing the built-in `nats` module you can call a rich catalogue of number-theory routines (`gcd`, `sum_digits`, `phi`, `divisors_count`, `modpow`, `is_prime`, …) directly from ApexLang source. Advanced primality helpers—including Fermat and strong pseudoprime predicates, a configurable Miller–Rabin driver, a Carmichael classifier, Wilson-theorem verification, Kaprekar classifications (constant/steps + theorem validation), twin-prime/Sophie Germain/Cunningham detectors, Goldbach-witness utilities, Lucas–Lehmer/Mersenne probes, and a Fermat-little-theorem witness checker—round out the toolkit for building mathematically intensive programs. The module also exposes natural-number ergonomics such as `abs_value`, localized prime/composite aliases, and Kaprekar theorem checks for 4-digit flows.
+The repository ships with a tiny prototype interpreter that understands the MVP syntax described in the design document. The interpreter now supports BigInt-backed integers, floating-point numbers, booleans, local bindings via `let`/`var`, user-defined helper functions, and a lightweight import system. By importing the built-in `nats` module you can call a rich catalogue of number-theory routines (`gcd`, `sum_digits`, `phi`, `divisors_count`, `modpow`, `is_prime`, …) directly from ApexLang source. Advanced primality helpers—including Fermat and strong pseudoprime predicates, a configurable Miller–Rabin driver, a Carmichael classifier, Wilson-theorem verification, Kaprekar classifications (constant/steps + theorem validation), twin-prime/Sophie Germain/Cunningham detectors, Goldbach-witness utilities, Lucas–Lehmer/Mersenne probes, Euler-totient-theorem and Gauss-sum validators, and Bertrand-postulate witnesses—round out the toolkit for building mathematically intensive programs. The module also exposes natural-number ergonomics such as `abs_value`, localized prime/composite aliases, and Kaprekar theorem checks for 4-digit flows.
 
 For floating-point heavy workloads, the companion `math` module exposes zero-argument constants (`pi()`, `e()`), a numerically stable `abs` helper, and a sweep of analytic primitives: `sqrt`, `cbrt`, `hypot`, `pow`, `exp`, `ln`, `log`, `sin`, `cos`, and `tan`. The interpreter automatically widens integers to doubles so programs can blend `math` and `nats` calls in the same expressions without ceremony.
 
 All native math intrinsics are covered by dedicated unit tests that validate modular arithmetic, Möbius/Legendre symbols, aliquot dynamics, and perfect-power detection against BigInt references—helping ensure the language delivers trustworthy results for demanding numerical workloads.
+
+#### Natural-number theorem catalog
+
+The `nats` module acts like a miniature research notebook for natural-number theorems. Each helper evaluates the predicate exactly as stated in classical texts, so ApexLang programs can stitch theorem proofs directly into their control flow:
+
+| Function | Statement it validates | Result type |
+| --- | --- | --- |
+| `nats.fermat_little(a, p)` | Verifies `a^(p-1) ≡ 1 (mod p)` for prime `p` coprime with `a` | `Bool` |
+| `nats.euler_totient_theorem(a, n)` | Checks Euler's totient theorem `a^{φ(n)} ≡ 1 (mod n)` when `gcd(a, n) = 1` | `Bool` |
+| `nats.wilson_theorem(n)` | Confirms `(n-1)! ≡ -1 (mod n)` iff `n` is prime | `Bool` |
+| `nats.goldbach_holds(n)`/`nats.goldbach_witness(n)` | Tests even `n` ≥ 4 for Goldbach witnesses and returns one | `Bool` / `Int` |
+| `nats.bertrand_postulate(n)`/`nats.bertrand_prime(n)` | Validates Bertrand's postulate and surfaces the witness prime between `n` and `2n` | `Bool` / `Int` |
+| `nats.kaprekar_theorem(n)`/`nats.kaprekar_6174_steps(n)` | Demonstrates the Kaprekar routine converging to 6174 | `Bool` / `Int` |
+| `nats.gauss_sum(n)`/`nats.gauss_sum_identity(n)` | Computes triangular numbers and proves Gauss's closed form | `Int` / `Bool` |
+| `nats.fermat_little`, `nats.is_fermat_pseudoprime`, `nats.is_strong_pseudoprime`, `nats.miller_rabin_test` | Layered primality/pseudoprime diagnostics | `Bool` |
+
+Combine them freely with Fibonacci/Harshad/Armstrong/twin-prime predicates, divisor counters, and modular arithmetic primitives to script complex proofs over the natural numbers.
 
 ```bash
 cargo run --bin afns -- apex --input examples/apex/demo.apx
@@ -54,7 +71,12 @@ fn apex() {
     let goldbach_ok = btoi(nats.goldbach_holds(84));
     let mersenne = nats.mersenne_number(7);
     let mersenne_prime = btoi(nats.is_mersenne_prime(7));
-    return enriched + bonus + energy + smooth + divisor_score + twin + sophie + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + goldbach_pair + goldbach_ok + mersenne_prime + mersenne / 127 + kaprekar_constant / 6174;
+    let bertrand_witness = nats.bertrand_prime(50);
+    let bertrand_ok = btoi(nats.bertrand_postulate(50));
+    let euler = btoi(nats.euler_totient_theorem(7, 40));
+    let gauss = nats.gauss_sum(25);
+    let gauss_ok = btoi(nats.gauss_sum_identity(25));
+    return enriched + bonus + energy + smooth + divisor_score + twin + sophie + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + goldbach_pair + goldbach_ok + mersenne_prime + mersenne / 127 + kaprekar_constant / 6174 + bertrand_witness / 53 + bertrand_ok + euler + gauss / 55 + gauss_ok;
 }
 ```
 

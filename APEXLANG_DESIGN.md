@@ -190,7 +190,7 @@ fn apex() {
 
 ## 25. Extended Math Standard Library
 - **Core**: `fact`, `fib`, `is_armstrong`, and the full natural-number toolkit are implemented over arbitrary-precision `BigInt` values in the MVP interpreter.
-- **Validation**: A comprehensive unit-test suite guards modular exponentiation/inversion, Möbius and Legendre arithmetic, aliquot sequences, perfect-square/power detection, and Carmichael computations to guarantee mathematically sound behaviour.
+- **Validation**: A comprehensive unit-test suite guards modular exponentiation/inversion, Möbius and Legendre arithmetic, aliquot sequences, perfect-square/power detection, Euler-totient-theorem witnesses, Gauss-sum identities, Bertrand-search results, and Carmichael computations to guarantee mathematically sound behaviour.
 - **Future Enhancements**: Dedicated width-specific integers, optimized modular arithmetic, and high-performance `linalg` primitives.
 
 ## 26. Syntax Completion and Natural Numbers
@@ -218,8 +218,9 @@ fn apex() {
 - **Import Patterns**: Whole-module imports, symbol imports, and aliasing.
 - **Utilities**: `btoi`, digit operations, divisor counts, classification helpers.
 - **Relations**: `gcd`, `lcm`, `coprime`, parity helpers, and localized aliases (`is_simple_number`, `is_murekkeb_number`).
-- **Advanced Number Theory**: `phi`, `digital_root`, `fact`, `nCr`, `modpow`, `modinv`, sieves, amicable checks, aliquot lengths, Fibonacci, Armstrong and Harshad predicates, perfect squares, power checks, Möbius function, Legendre symbol, quadratic residue tests, twin-prime/Sophie Germain/Cunningham detectors, Goldbach witnesses (`goldbach_holds`, `goldbach_witness`), Lucas–Lehmer/Mersenne helpers, and a dedicated Fermat-little-theorem validator for fast sanity checks.
+- **Advanced Number Theory**: `phi`, `digital_root`, `fact`, `nCr`, `modpow`, `modinv`, sieves, amicable checks, aliquot lengths, Fibonacci, Armstrong and Harshad predicates, perfect squares, power checks, Möbius function, Legendre symbol, quadratic residue tests, twin-prime/Sophie Germain/Cunningham detectors, Goldbach witnesses (`goldbach_holds`, `goldbach_witness`), Lucas–Lehmer/Mersenne helpers, Bertrand-postulate utilities (`bertrand_postulate`, `bertrand_prime`), Gauss-triangular-number helpers (`gauss_sum`, `gauss_sum_identity`), and Fermat/Euler totient-theorem validators for fast sanity checks.
 - **Kaprekar & Wilson Tooling**: `kaprekar_constant`, `is_kaprekar`, `kaprekar_theorem`, `kaprekar_6174_steps`, and `wilson_theorem` capture Kaprekar's constant/theorem workflows alongside Wilson's primality certificate so mathematical programs can reason directly about those results. `abs_value` rounds out the ergonomics when lifting signed ApexLang inputs into natural-number territory.
+- **Totient-focused Proofs**: `euler_totient_theorem` and `phi` expose Euler's theorem under `BigInt`, enabling ApexLang routines to verify that `a^{φ(n)} ≡ 1 (mod n)` whenever `gcd(a, n) = 1`.
 - **Floating-Point Companion (`math`)**: Zero-arg constants `pi()`/`e()`, a numerically stable `abs` helper, and transcendental helpers (`sqrt`, `cbrt`, `hypot`, `pow`, `exp`, `ln`, `log`, `sin`, `cos`, `tan`) live beside the `nats` toolkit so ApexLang code can fluidly combine BigInt-heavy reasoning with analytic workloads.
 
 ## 29. Primality Testing Suite
@@ -260,7 +261,12 @@ fn apex() {
   let goldbach_ok = btoi(nats.goldbach_holds(84));
   let mersenne = nats.mersenne_number(7);
   let mersenne_prime = btoi(nats.is_mersenne_prime(7));
-  return enriched + bonus + energy + smooth + divisor_score + twin + sophie + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + goldbach_pair + goldbach_ok + mersenne_prime + mersenne / 127 + kaprekar_constant / 6174;
+  let bertrand_witness = nats.bertrand_prime(50);
+  let bertrand_ok = btoi(nats.bertrand_postulate(50));
+  let euler = btoi(nats.euler_totient_theorem(7, 40));
+  let gauss = nats.gauss_sum(25);
+  let gauss_ok = btoi(nats.gauss_sum_identity(25));
+  return enriched + bonus + energy + smooth + divisor_score + twin + sophie + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + goldbach_pair + goldbach_ok + mersenne_prime + mersenne / 127 + kaprekar_constant / 6174 + bertrand_witness / 53 + bertrand_ok + euler + gauss / 55 + gauss_ok;
 }
 ```
 

@@ -31,5 +31,10 @@ fn apex() {
     let goldbach_ok = btoi(nats.goldbach_holds(84));
     let mersenne = nats.mersenne_number(7);
     let mersenne_prime = btoi(nats.is_mersenne_prime(7));
-    return enriched + bonus + energy + smooth + divisor_score + twin + sophie + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + goldbach_pair + goldbach_ok + mersenne_prime + mersenne / 127 + kaprekar_constant / 6174;
+    let bertrand_witness = nats.bertrand_prime(50);
+    let bertrand_ok = btoi(nats.bertrand_postulate(50));
+    let euler = btoi(nats.euler_totient_theorem(7, 40));
+    let gauss = nats.gauss_sum(25);
+    let gauss_ok = btoi(nats.gauss_sum_identity(25));
+    return enriched + bonus + energy + smooth + divisor_score + twin + sophie + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + goldbach_pair + goldbach_ok + mersenne_prime + mersenne / 127 + kaprekar_constant / 6174 + bertrand_witness / 53 + bertrand_ok + euler + gauss / 55 + gauss_ok;
 }

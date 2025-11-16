@@ -62,6 +62,11 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!(functions, "kaprekar_theorem", kaprekar_theorem);
     add!(functions, "kaprekar_6174_steps", kaprekar_6174_steps);
     add!(functions, "wilson_theorem", wilson_theorem);
+    add!(functions, "euler_totient_theorem", euler_totient_theorem);
+    add!(functions, "bertrand_postulate", bertrand_postulate);
+    add!(functions, "bertrand_prime", bertrand_prime);
+    add!(functions, "gauss_sum", gauss_sum);
+    add!(functions, "gauss_sum_identity", gauss_sum_identity);
     add!(functions, "phi", phi);
     add!(functions, "digital_root", digital_root);
     add!(functions, "fact", fact);
@@ -663,18 +668,73 @@ fn wilson_theorem(args: &[Value]) -> Result<Value, ApexError> {
     Ok(Value::Bool(holds))
 }
 
+fn euler_totient_theorem(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 2, "euler_totient_theorem")?;
+    let base = expect_nat_arg(args, 0, "euler_totient_theorem")?;
+    let modulus = expect_nat_arg(args, 1, "euler_totient_theorem")?;
+    if modulus <= BigInt::one() {
+        return Err(ApexError::new(
+            "euler_totient_theorem requires modulus greater than 1",
+        ));
+    }
+    if !base.gcd(&modulus).is_one() {
+        return Ok(Value::Bool(false));
+    }
+    let totient = totient_value(&modulus, "euler_totient_theorem")?;
+    let residue = mod_pow(base.clone(), totient, modulus.clone());
+    Ok(Value::Bool(residue == BigInt::one()))
+}
+
+fn gauss_sum(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "gauss_sum")?;
+    let n = expect_nat_arg(args, 0, "gauss_sum")?;
+    Ok(Value::Int(triangular_sum_formula(&n)))
+}
+
+fn gauss_sum_identity(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "gauss_sum_identity")?;
+    let n = expect_nat_arg(args, 0, "gauss_sum_identity")?;
+    let iterative = triangular_sum_iter(&n);
+    let formula = triangular_sum_formula(&n);
+    Ok(Value::Bool(iterative == formula))
+}
+
 fn phi(args: &[Value]) -> Result<Value, ApexError> {
     ensure_len(args, 1, "phi")?;
     let n = expect_nat_arg(args, 0, "phi")?;
+    let result = totient_value(&n, "phi")?;
+    Ok(Value::Int(result))
+}
+
+fn totient_value(n: &BigInt, name: &str) -> Result<BigInt, ApexError> {
     if n.is_zero() {
-        return Ok(Value::Int(big_zero()));
+        return Ok(big_zero());
     }
     let mut result = n.clone();
-    let factors = prime_factors_u128(&n, "phi")?;
+    let factors = prime_factors_u128(n, name)?;
     for (p, _) in factors {
         result -= &result / BigInt::from(p as u128);
     }
-    Ok(Value::Int(result))
+    Ok(result)
+}
+
+fn triangular_sum_iter(n: &BigInt) -> BigInt {
+    let mut total = big_zero();
+    if n.is_zero() {
+        return total;
+    }
+    let mut current = BigInt::one();
+    while &current <= n {
+        total += &current;
+        current += BigInt::one();
+    }
+    total
+}
+
+fn triangular_sum_formula(n: &BigInt) -> BigInt {
+    let mut result = n.clone() * (n + BigInt::one());
+    result /= BigInt::from(2u8);
+    result
 }
 
 fn digital_root(args: &[Value]) -> Result<Value, ApexError> {
@@ -789,6 +849,26 @@ fn goldbach_witness(args: &[Value]) -> Result<Value, ApexError> {
         Ok(Value::Int(BigInt::from(prime)))
     } else {
         Err(ApexError::new("Goldbach search failed to find a witness"))
+    }
+}
+
+fn bertrand_postulate(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "bertrand_postulate")?;
+    let n = expect_nat_arg(args, 0, "bertrand_postulate")?;
+    let value = validate_bertrand_input(&n, "bertrand_postulate")?;
+    Ok(Value::Bool(find_bertrand_prime(value).is_some()))
+}
+
+fn bertrand_prime(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "bertrand_prime")?;
+    let n = expect_nat_arg(args, 0, "bertrand_prime")?;
+    let value = validate_bertrand_input(&n, "bertrand_prime")?;
+    if let Some(prime) = find_bertrand_prime(value) {
+        Ok(Value::Int(BigInt::from(prime)))
+    } else {
+        Err(ApexError::new(
+            "Bertrand search failed to find a prime in range",
+        ))
     }
 }
 
@@ -1092,6 +1172,36 @@ fn find_goldbach_pair(target: u128) -> Option<(u128, u128)> {
             if is_prime_raw(other) {
                 return Some((candidate, other));
             }
+        }
+        candidate += if candidate == 2 { 1 } else { 2 };
+    }
+    None
+}
+
+fn validate_bertrand_input(n: &BigInt, name: &str) -> Result<u128, ApexError> {
+    if n <= &BigInt::one() {
+        return Err(ApexError::new(format!(
+            "{} requires an integer greater than 1",
+            name
+        )));
+    }
+    let value = to_u128(n, name)?;
+    if value > u128::MAX / 2 {
+        return Err(ApexError::new(format!(
+            "{} argument '{}' is too large for 2n upper bound",
+            name, n
+        )));
+    }
+    Ok(value)
+}
+
+fn find_bertrand_prime(n: u128) -> Option<u128> {
+    let start = n.checked_add(1)?;
+    let end = n.checked_mul(2)?;
+    let mut candidate = start.max(2);
+    while candidate <= end {
+        if is_prime_raw(candidate) {
+            return Some(candidate);
         }
         candidate += if candidate == 2 { 1 } else { 2 };
     }
@@ -1434,5 +1544,35 @@ mod tests {
 
         let carmichael_false = is_carmichael(&[uint(45)]).unwrap();
         assert_eq!(carmichael_false, bool_value(false));
+    }
+
+    #[test]
+    fn bertrand_and_euler_helpers_cover_theorems() {
+        let bertrand_ok = bertrand_postulate(&[uint(50)]).unwrap();
+        assert_eq!(bertrand_ok, bool_value(true));
+
+        let witness = bertrand_prime(&[uint(50)]).unwrap();
+        assert_eq!(witness, uint(53));
+
+        let totient_hold = euler_totient_theorem(&[uint(7), uint(40)]).unwrap();
+        assert_eq!(totient_hold, bool_value(true));
+
+        let totient_fail = euler_totient_theorem(&[uint(6), uint(9)]).unwrap();
+        assert_eq!(totient_fail, bool_value(false));
+
+        let invalid = bertrand_postulate(&[uint(1)]);
+        assert!(invalid.is_err());
+    }
+
+    #[test]
+    fn gauss_sum_and_identity_verification() {
+        let gauss = gauss_sum(&[uint(10)]).unwrap();
+        assert_eq!(gauss, uint(55));
+
+        let zero = gauss_sum(&[uint(0)]).unwrap();
+        assert_eq!(zero, uint(0));
+
+        let holds = gauss_sum_identity(&[uint(25)]).unwrap();
+        assert_eq!(holds, bool_value(true));
     }
 }
