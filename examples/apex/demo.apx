@@ -36,5 +36,14 @@ fn apex() {
     let euler = btoi(nats.euler_totient_theorem(7, 40));
     let gauss = nats.gauss_sum(25);
     let gauss_ok = btoi(nats.gauss_sum_identity(25));
-    return enriched + bonus + energy + smooth + divisor_score + twin + sophie + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + goldbach_pair + goldbach_ok + mersenne_prime + mersenne / 127 + kaprekar_constant / 6174 + bertrand_witness / 53 + bertrand_ok + euler + gauss / 55 + gauss_ok;
+    let triangular = nats.triangular_number(divisor_score);
+    let figurate = nats.pentagonal_number(5) + nats.hexagonal_number(4);
+    let catalan = nats.catalan_number(5);
+    let catalan_ok = btoi(nats.catalan_theorem(5));
+    let nicomachus = btoi(nats.nicomachus_theorem(25));
+    let happy = nats.happy_steps(19);
+    let automorphic = btoi(nats.is_automorphic(76));
+    let pal = btoi(nats.is_palindromic(12321));
+    let triple = btoi(nats.pythagorean_triple(3, 4, 5));
+    return enriched + bonus + energy + smooth + divisor_score + twin + sophie + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + goldbach_pair + goldbach_ok + mersenne_prime + mersenne / 127 + kaprekar_constant / 6174 + bertrand_witness / 53 + bertrand_ok + euler + gauss / 55 + gauss_ok + triangular / 55 + figurate / 63 + catalan / 42 + catalan_ok + nicomachus + happy + automorphic + pal + triple;
 }

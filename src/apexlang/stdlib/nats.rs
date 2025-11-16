@@ -26,6 +26,15 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!(functions, "sum_digits", sum_digits);
     add!(functions, "sum_digits_base", sum_digits_base);
     add!(functions, "num_digits", num_digits);
+    add!(functions, "triangular_number", triangular_number);
+    add!(functions, "is_triangular", is_triangular);
+    add!(functions, "pentagonal_number", pentagonal_number);
+    add!(functions, "is_pentagonal", is_pentagonal);
+    add!(functions, "hexagonal_number", hexagonal_number);
+    add!(functions, "is_hexagonal", is_hexagonal);
+    add!(functions, "catalan_number", catalan_number);
+    add!(functions, "catalan_theorem", catalan_theorem);
+    add!(functions, "nicomachus_theorem", nicomachus_theorem);
     add!(functions, "divisors_count", divisors_count);
     add!(functions, "divisors_sum", divisors_sum);
     add!(functions, "proper_divisors_sum", proper_divisors_sum);
@@ -78,8 +87,13 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!(functions, "aliquot_length", aliquot_length);
     add!(functions, "goldbach_holds", goldbach_holds);
     add!(functions, "goldbach_witness", goldbach_witness);
+    add!(functions, "is_happy", is_happy);
+    add!(functions, "happy_steps", happy_steps);
     add!(functions, "is_square", is_square);
     add!(functions, "is_power", is_power);
+    add!(functions, "is_automorphic", is_automorphic);
+    add!(functions, "is_palindromic", is_palindromic);
+    add!(functions, "pythagorean_triple", pythagorean_triple);
     add!(functions, "mobius", mobius);
     add!(functions, "legendre_symbol", legendre_symbol);
     add!(functions, "is_quadratic_residue", is_quadratic_residue);
@@ -225,6 +239,64 @@ fn num_digits(args: &[Value]) -> Result<Value, ApexError> {
     Ok(Value::Int(
         BigInt::from(value.to_str_radix(10).len() as u64),
     ))
+}
+
+fn triangular_number(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "triangular_number")?;
+    let n = expect_nat_arg(args, 0, "triangular_number")?;
+    Ok(Value::Int(triangular_sum_formula(&n)))
+}
+
+fn is_triangular(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "is_triangular")?;
+    let n = expect_nat_arg(args, 0, "is_triangular")?;
+    Ok(Value::Bool(is_triangular_value(&n)))
+}
+
+fn pentagonal_number(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "pentagonal_number")?;
+    let n = expect_nat_arg(args, 0, "pentagonal_number")?;
+    Ok(Value::Int(pentagonal_value(&n)))
+}
+
+fn is_pentagonal(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "is_pentagonal")?;
+    let n = expect_nat_arg(args, 0, "is_pentagonal")?;
+    Ok(Value::Bool(is_pentagonal_value(&n)))
+}
+
+fn hexagonal_number(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "hexagonal_number")?;
+    let n = expect_nat_arg(args, 0, "hexagonal_number")?;
+    Ok(Value::Int(hexagonal_value(&n)))
+}
+
+fn is_hexagonal(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "is_hexagonal")?;
+    let n = expect_nat_arg(args, 0, "is_hexagonal")?;
+    Ok(Value::Bool(is_hexagonal_value(&n)))
+}
+
+fn catalan_number(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "catalan_number")?;
+    let n = expect_nat_arg(args, 0, "catalan_number")?;
+    let index = to_usize(&n, "catalan_number")?;
+    Ok(Value::Int(catalan_value(index)))
+}
+
+fn catalan_theorem(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "catalan_theorem")?;
+    let n = expect_nat_arg(args, 0, "catalan_theorem")?;
+    let index = to_usize(&n, "catalan_theorem")?;
+    Ok(Value::Bool(validate_catalan_recursion(index)))
+}
+
+fn nicomachus_theorem(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "nicomachus_theorem")?;
+    let n = expect_nat_arg(args, 0, "nicomachus_theorem")?;
+    let triangular = triangular_sum_formula(&n);
+    let sum_cubes = sum_of_cubes(&n);
+    Ok(Value::Bool(sum_cubes == &triangular * &triangular))
 }
 
 fn sum_digits_impl(value: &BigInt, base: u32) -> BigInt {
@@ -737,6 +809,120 @@ fn triangular_sum_formula(n: &BigInt) -> BigInt {
     result
 }
 
+fn is_triangular_value(n: &BigInt) -> bool {
+    let discriminant = BigInt::from(8u8) * n + BigInt::one();
+    let sqrt = integer_sqrt(&discriminant);
+    if &sqrt * &sqrt != discriminant {
+        return false;
+    }
+    (sqrt - BigInt::one()) % BigInt::from(2u8) == BigInt::zero()
+}
+
+fn pentagonal_value(n: &BigInt) -> BigInt {
+    let three = BigInt::from(3u8);
+    let two = BigInt::from(2u8);
+    (n * (&three * n - BigInt::one())) / two
+}
+
+fn is_pentagonal_value(n: &BigInt) -> bool {
+    let discriminant = BigInt::from(24u8) * n + BigInt::one();
+    let sqrt = integer_sqrt(&discriminant);
+    if &sqrt * &sqrt != discriminant {
+        return false;
+    }
+    (sqrt + BigInt::one()) % BigInt::from(6u8) == BigInt::zero()
+}
+
+fn hexagonal_value(n: &BigInt) -> BigInt {
+    let two = BigInt::from(2u8);
+    n * (&two * n - BigInt::one())
+}
+
+fn is_hexagonal_value(n: &BigInt) -> bool {
+    let discriminant = BigInt::from(8u8) * n + BigInt::one();
+    let sqrt = integer_sqrt(&discriminant);
+    if &sqrt * &sqrt != discriminant {
+        return false;
+    }
+    (sqrt + BigInt::one()) % BigInt::from(4u8) == BigInt::zero()
+}
+
+fn catalan_value(n: usize) -> BigInt {
+    if n == 0 {
+        return BigInt::one();
+    }
+    let numerator = binomial(2 * n, n);
+    numerator / BigInt::from((n + 1) as u64)
+}
+
+fn validate_catalan_recursion(n: usize) -> bool {
+    let mut values = Vec::with_capacity(n + 2);
+    for i in 0..=n + 1 {
+        values.push(catalan_value(i));
+    }
+    let lhs = values[n + 1].clone();
+    let mut rhs = BigInt::zero();
+    for i in 0..=n {
+        rhs += &values[i] * &values[n - i];
+    }
+    lhs == rhs
+}
+
+fn sum_of_cubes(n: &BigInt) -> BigInt {
+    let mut total = BigInt::zero();
+    let mut current = BigInt::one();
+    while &current <= n {
+        total += current.pow(3u32);
+        current += BigInt::one();
+    }
+    total
+}
+
+fn happy_classification(n: &BigInt) -> (bool, u32) {
+    let mut seen = HashSet::new();
+    let mut current = n.clone();
+    let mut steps = 0u32;
+    while seen.insert(current.clone()) {
+        if current == BigInt::one() {
+            return (true, steps);
+        }
+        current = digit_square_sum(&current);
+        steps += 1;
+    }
+    (false, steps)
+}
+
+fn digit_square_sum(n: &BigInt) -> BigInt {
+    if n.is_zero() {
+        return big_zero();
+    }
+    let mut total = BigInt::zero();
+    let mut current = n.clone();
+    let ten = BigInt::from(10u8);
+    while !current.is_zero() {
+        let (q, r) = current.div_rem(&ten);
+        total += &r * &r;
+        current = q;
+    }
+    total
+}
+
+fn decimal_digit_count(n: &BigInt) -> usize {
+    if n.is_zero() {
+        return 1;
+    }
+    n.to_str_radix(10).len()
+}
+
+fn ten_to_power(count: usize) -> BigInt {
+    let mut value = BigInt::one();
+    let ten = BigInt::from(10u8);
+    for _ in 0..count {
+        value *= &ten;
+    }
+    value
+}
+
 fn digital_root(args: &[Value]) -> Result<Value, ApexError> {
     ensure_len(args, 1, "digital_root")?;
     let mut n = expect_nat_arg(args, 0, "digital_root")?;
@@ -852,6 +1038,24 @@ fn goldbach_witness(args: &[Value]) -> Result<Value, ApexError> {
     }
 }
 
+fn is_happy(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "is_happy")?;
+    let n = expect_nat_arg(args, 0, "is_happy")?;
+    let (happy, _) = happy_classification(&n);
+    Ok(Value::Bool(happy))
+}
+
+fn happy_steps(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "happy_steps")?;
+    let n = expect_nat_arg(args, 0, "happy_steps")?;
+    let (happy, steps) = happy_classification(&n);
+    if happy {
+        Ok(Value::Int(BigInt::from(steps)))
+    } else {
+        Ok(Value::Int(BigInt::from(-1)))
+    }
+}
+
 fn bertrand_postulate(args: &[Value]) -> Result<Value, ApexError> {
     ensure_len(args, 1, "bertrand_postulate")?;
     let n = expect_nat_arg(args, 0, "bertrand_postulate")?;
@@ -910,6 +1114,50 @@ fn is_power(args: &[Value]) -> Result<Value, ApexError> {
         }
     }
     Ok(Value::Bool(false))
+}
+
+fn is_automorphic(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "is_automorphic")?;
+    let n = expect_nat_arg(args, 0, "is_automorphic")?;
+    if n.is_zero() {
+        return Ok(Value::Bool(true));
+    }
+    let digits = decimal_digit_count(&n);
+    let modulus = ten_to_power(digits);
+    let square = (&n * &n) % &modulus;
+    Ok(Value::Bool(square == n))
+}
+
+fn is_palindromic(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "is_palindromic")?;
+    let n = expect_nat_arg(args, 0, "is_palindromic")?;
+    let text = n.to_str_radix(10);
+    let chars: Vec<char> = text.chars().collect();
+    let mut i = 0usize;
+    let mut j = chars.len().saturating_sub(1);
+    while i < j {
+        if chars[i] != chars[j] {
+            return Ok(Value::Bool(false));
+        }
+        i += 1;
+        if j == 0 {
+            break;
+        }
+        j -= 1;
+    }
+    Ok(Value::Bool(true))
+}
+
+fn pythagorean_triple(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 3, "pythagorean_triple")?;
+    let a = expect_nat_arg(args, 0, "pythagorean_triple")?;
+    let b = expect_nat_arg(args, 1, "pythagorean_triple")?;
+    let c = expect_nat_arg(args, 2, "pythagorean_triple")?;
+    let mut sides = vec![a, b, c];
+    sides.sort();
+    let lhs = &sides[0] * &sides[0] + &sides[1] * &sides[1];
+    let rhs = &sides[2] * &sides[2];
+    Ok(Value::Bool(lhs == rhs))
 }
 
 fn mobius(args: &[Value]) -> Result<Value, ApexError> {
@@ -1574,5 +1822,62 @@ mod tests {
 
         let holds = gauss_sum_identity(&[uint(25)]).unwrap();
         assert_eq!(holds, bool_value(true));
+    }
+
+    #[test]
+    fn figurate_numbers_and_catalan_theorems() {
+        let tri = triangular_number(&[uint(10)]).unwrap();
+        assert_eq!(tri, uint(55));
+
+        let tri_check = is_triangular(&[uint(55)]).unwrap();
+        assert_eq!(tri_check, bool_value(true));
+
+        let pent = pentagonal_number(&[uint(5)]).unwrap();
+        assert_eq!(pent, uint(35));
+
+        let pent_check = is_pentagonal(&[uint(35)]).unwrap();
+        assert_eq!(pent_check, bool_value(true));
+
+        let hex = hexagonal_number(&[uint(4)]).unwrap();
+        assert_eq!(hex, uint(28));
+
+        let hex_check = is_hexagonal(&[uint(28)]).unwrap();
+        assert_eq!(hex_check, bool_value(true));
+
+        let catalan = catalan_number(&[uint(5)]).unwrap();
+        assert_eq!(catalan, uint(42));
+
+        let catalan_identity = catalan_theorem(&[uint(5)]).unwrap();
+        assert_eq!(catalan_identity, bool_value(true));
+
+        let nicomachus = nicomachus_theorem(&[uint(25)]).unwrap();
+        assert_eq!(nicomachus, bool_value(true));
+    }
+
+    #[test]
+    fn happy_palindromic_and_pythagorean_helpers() {
+        let happy = is_happy(&[uint(19)]).unwrap();
+        assert_eq!(happy, bool_value(true));
+
+        let happy_len = happy_steps(&[uint(19)]).unwrap();
+        assert_eq!(happy_len, uint(4));
+
+        let unhappy = is_happy(&[uint(20)]).unwrap();
+        assert_eq!(unhappy, bool_value(false));
+
+        let unhappy_steps = happy_steps(&[uint(20)]).unwrap();
+        assert_eq!(unhappy_steps, int(-1));
+
+        let automorphic = is_automorphic(&[uint(76)]).unwrap();
+        assert_eq!(automorphic, bool_value(true));
+
+        let pal = is_palindromic(&[uint(12321)]).unwrap();
+        assert_eq!(pal, bool_value(true));
+
+        let triple = pythagorean_triple(&[uint(3), uint(4), uint(5)]).unwrap();
+        assert_eq!(triple, bool_value(true));
+
+        let triple_false = pythagorean_triple(&[uint(2), uint(3), uint(4)]).unwrap();
+        assert_eq!(triple_false, bool_value(false));
     }
 }
