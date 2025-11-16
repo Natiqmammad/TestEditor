@@ -35,6 +35,12 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!(functions, "catalan_number", catalan_number);
     add!(functions, "catalan_theorem", catalan_theorem);
     add!(functions, "nicomachus_theorem", nicomachus_theorem);
+    add!(functions, "pell_number", pell_number);
+    add!(functions, "pell_lucas_number", pell_lucas_number);
+    add!(functions, "pell_theorem", pell_theorem);
+    add!(functions, "pell_equation", pell_equation);
+    add!(functions, "sylvester_number", sylvester_number);
+    add!(functions, "sylvester_identity", sylvester_identity);
     add!(functions, "divisors_count", divisors_count);
     add!(functions, "divisors_sum", divisors_sum);
     add!(functions, "proper_divisors_sum", proper_divisors_sum);
@@ -89,6 +95,7 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!(functions, "goldbach_witness", goldbach_witness);
     add!(functions, "is_happy", is_happy);
     add!(functions, "happy_steps", happy_steps);
+    add!(functions, "is_ruth_aaron_pair", is_ruth_aaron_pair);
     add!(functions, "is_square", is_square);
     add!(functions, "is_power", is_power);
     add!(functions, "is_automorphic", is_automorphic);
@@ -297,6 +304,57 @@ fn nicomachus_theorem(args: &[Value]) -> Result<Value, ApexError> {
     let triangular = triangular_sum_formula(&n);
     let sum_cubes = sum_of_cubes(&n);
     Ok(Value::Bool(sum_cubes == &triangular * &triangular))
+}
+
+fn pell_number(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "pell_number")?;
+    let n = expect_nat_arg(args, 0, "pell_number")?;
+    let index = to_usize(&n, "pell_number")?;
+    Ok(Value::Int(pell_value(index)))
+}
+
+fn pell_lucas_number(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "pell_lucas_number")?;
+    let n = expect_nat_arg(args, 0, "pell_lucas_number")?;
+    let index = to_usize(&n, "pell_lucas_number")?;
+    Ok(Value::Int(pell_lucas_value(index)))
+}
+
+fn pell_theorem(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "pell_theorem")?;
+    let n = expect_nat_arg(args, 0, "pell_theorem")?;
+    let index = to_usize(&n, "pell_theorem")?;
+    let pell = pell_value(index);
+    let lucas = pell_lucas_value(index);
+    let lhs = &lucas * &lucas - BigInt::from(8u8) * &pell * &pell;
+    let rhs = if index % 2 == 0 {
+        BigInt::from(4u8)
+    } else {
+        BigInt::from(-4i8)
+    };
+    Ok(Value::Bool(lhs == rhs))
+}
+
+fn pell_equation(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 2, "pell_equation")?;
+    let x = expect_int_arg(args, 0, "pell_equation")?;
+    let y = expect_int_arg(args, 1, "pell_equation")?;
+    let lhs = &x * &x - BigInt::from(2u8) * &y * &y;
+    Ok(Value::Bool(lhs == BigInt::one() || lhs == BigInt::from(-1)))
+}
+
+fn sylvester_number(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "sylvester_number")?;
+    let n = expect_nat_arg(args, 0, "sylvester_number")?;
+    let index = to_usize(&n, "sylvester_number")?;
+    Ok(Value::Int(sylvester_value(index)))
+}
+
+fn sylvester_identity(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "sylvester_identity")?;
+    let n = expect_nat_arg(args, 0, "sylvester_identity")?;
+    let steps = to_usize(&n, "sylvester_identity")?;
+    Ok(Value::Bool(verify_sylvester_identity(steps)))
 }
 
 fn sum_digits_impl(value: &BigInt, base: u32) -> BigInt {
@@ -878,6 +936,67 @@ fn sum_of_cubes(n: &BigInt) -> BigInt {
     total
 }
 
+fn pell_value(n: usize) -> BigInt {
+    if n == 0 {
+        return big_zero();
+    }
+    if n == 1 {
+        return BigInt::one();
+    }
+    let mut prev = big_zero();
+    let mut curr = BigInt::one();
+    for _ in 1..n {
+        let next = &curr * BigInt::from(2u8) + &prev;
+        prev = curr;
+        curr = next;
+    }
+    curr
+}
+
+fn pell_lucas_value(n: usize) -> BigInt {
+    if n == 0 || n == 1 {
+        return BigInt::from(2u8);
+    }
+    let mut prev = BigInt::from(2u8);
+    let mut curr = BigInt::from(2u8);
+    for _ in 1..n {
+        let next = &curr * BigInt::from(2u8) + &prev;
+        prev = curr;
+        curr = next;
+    }
+    curr
+}
+
+fn sylvester_value(n: usize) -> BigInt {
+    if n == 0 {
+        return BigInt::from(2u8);
+    }
+    let mut product = BigInt::from(2u8);
+    for idx in 1..=n {
+        let next = &product + BigInt::one();
+        if idx == n {
+            return next;
+        }
+        product *= &next;
+    }
+    unreachable!()
+}
+
+fn verify_sylvester_identity(steps: usize) -> bool {
+    if steps == 0 {
+        return true;
+    }
+    let mut product = BigInt::from(2u8);
+    for _ in 0..steps {
+        let next = &product + BigInt::one();
+        if product.clone() != &next - BigInt::one() {
+            return false;
+        }
+        product *= &next;
+    }
+    true
+}
+
 fn happy_classification(n: &BigInt) -> (bool, u32) {
     let mut seen = HashSet::new();
     let mut current = n.clone();
@@ -1054,6 +1173,23 @@ fn happy_steps(args: &[Value]) -> Result<Value, ApexError> {
     } else {
         Ok(Value::Int(BigInt::from(-1)))
     }
+}
+
+fn is_ruth_aaron_pair(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 2, "is_ruth_aaron_pair")?;
+    let a = expect_nat_arg(args, 0, "is_ruth_aaron_pair")?;
+    let b = expect_nat_arg(args, 1, "is_ruth_aaron_pair")?;
+    if a <= BigInt::one() || b <= BigInt::one() {
+        return Err(ApexError::new(
+            "is_ruth_aaron_pair requires integers greater than 1",
+        ));
+    }
+    if (&a - &b).abs() != BigInt::one() {
+        return Ok(Value::Bool(false));
+    }
+    let sum_a = sum_prime_factors_with_multiplicity(&a, "is_ruth_aaron_pair")?;
+    let sum_b = sum_prime_factors_with_multiplicity(&b, "is_ruth_aaron_pair")?;
+    Ok(Value::Bool(sum_a == sum_b))
 }
 
 fn bertrand_postulate(args: &[Value]) -> Result<Value, ApexError> {
@@ -1491,6 +1627,21 @@ fn lucas_lehmer_sequence(p: u32) -> bool {
     s.is_zero()
 }
 
+fn sum_prime_factors_with_multiplicity(n: &BigInt, name: &str) -> Result<BigInt, ApexError> {
+    if n <= &BigInt::one() {
+        return Err(ApexError::new(format!(
+            "{} requires integers greater than 1",
+            name
+        )));
+    }
+    let factors = prime_factors_u128(n, name)?;
+    let mut sum = BigInt::zero();
+    for (prime, exp) in factors {
+        sum += BigInt::from(prime) * BigInt::from(exp);
+    }
+    Ok(sum)
+}
+
 fn prime_factors_u128(n: &BigInt, name: &str) -> Result<Vec<(u128, u32)>, ApexError> {
     if n.is_zero() {
         return Err(ApexError::new(format!("{} is undefined for zero", name)));
@@ -1690,6 +1841,42 @@ mod tests {
 
         let carmichael_val = carmichael(&[uint(45)]).unwrap();
         assert_eq!(carmichael_val, uint(12));
+    }
+
+    #[test]
+    fn pell_sequences_and_pell_equation() {
+        let pell_val = pell_number(&[uint(10)]).unwrap();
+        assert_eq!(pell_val, uint(2378));
+
+        let pell_lucas_val = pell_lucas_number(&[uint(5)]).unwrap();
+        assert_eq!(pell_lucas_val, uint(82));
+
+        let pell_identity = pell_theorem(&[uint(7)]).unwrap();
+        assert_eq!(pell_identity, bool_value(true));
+
+        let pell_solution = pell_equation(&[uint(577), uint(408)]).unwrap();
+        assert_eq!(pell_solution, bool_value(true));
+
+        let non_solution = pell_equation(&[uint(5), uint(3)]).unwrap();
+        assert_eq!(non_solution, bool_value(false));
+    }
+
+    #[test]
+    fn sylvester_numbers_and_identity() {
+        let sylvester_val = sylvester_number(&[uint(4)]).unwrap();
+        assert_eq!(sylvester_val, uint(1807));
+
+        let identity = sylvester_identity(&[uint(4)]).unwrap();
+        assert_eq!(identity, bool_value(true));
+    }
+
+    #[test]
+    fn ruth_aaron_pairs_detected() {
+        let pair = is_ruth_aaron_pair(&[uint(714), uint(715)]).unwrap();
+        assert_eq!(pair, bool_value(true));
+
+        let non_pair = is_ruth_aaron_pair(&[uint(10), uint(11)]).unwrap();
+        assert_eq!(non_pair, bool_value(false));
     }
 
     #[test]

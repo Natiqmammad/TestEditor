@@ -45,5 +45,12 @@ fn apex() {
     let automorphic = btoi(nats.is_automorphic(76));
     let pal = btoi(nats.is_palindromic(12321));
     let triple = btoi(nats.pythagorean_triple(3, 4, 5));
-    return enriched + bonus + energy + smooth + divisor_score + twin + sophie + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + goldbach_pair + goldbach_ok + mersenne_prime + mersenne / 127 + kaprekar_constant / 6174 + bertrand_witness / 53 + bertrand_ok + euler + gauss / 55 + gauss_ok + triangular / 55 + figurate / 63 + catalan / 42 + catalan_ok + nicomachus + happy + automorphic + pal + triple;
+    let pell = nats.pell_number(10);
+    let pell_lucas = nats.pell_lucas_number(10);
+    let pell_id = btoi(nats.pell_theorem(10));
+    let pell_solution = btoi(nats.pell_equation(577, 408));
+    let sylvester = nats.sylvester_number(4);
+    let sylvester_ok = btoi(nats.sylvester_identity(4));
+    let ruth_aaron = btoi(nats.is_ruth_aaron_pair(714, 715));
+    return enriched + bonus + energy + smooth + divisor_score + twin + sophie + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + goldbach_pair + goldbach_ok + mersenne_prime + mersenne / 127 + kaprekar_constant / 6174 + bertrand_witness / 53 + bertrand_ok + euler + gauss / 55 + gauss_ok + triangular / 55 + figurate / 63 + catalan / 42 + catalan_ok + nicomachus + happy + automorphic + pal + triple + pell / 1000 + pell_lucas / 1000 + pell_id + pell_solution + sylvester / 2000 + sylvester_ok + ruth_aaron;
 }
