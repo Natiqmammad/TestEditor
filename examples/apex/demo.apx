@@ -29,6 +29,8 @@ fn apex() {
     let smooth = math.abs(-3.5);
     let goldbach_pair = nats.goldbach_witness(84);
     let goldbach_ok = btoi(nats.goldbach_holds(84));
+    let ramanujan = nats.ramanujan_pairs(1729);
+    let taxicab = btoi(nats.is_taxicab_number(1729));
     let mersenne = nats.mersenne_number(7);
     let mersenne_prime = btoi(nats.is_mersenne_prime(7));
     let bertrand_witness = nats.bertrand_prime(50);
@@ -52,5 +54,8 @@ fn apex() {
     let sylvester = nats.sylvester_number(4);
     let sylvester_ok = btoi(nats.sylvester_identity(4));
     let ruth_aaron = btoi(nats.is_ruth_aaron_pair(714, 715));
-    return enriched + bonus + energy + smooth + divisor_score + twin + sophie + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + goldbach_pair + goldbach_ok + mersenne_prime + mersenne / 127 + kaprekar_constant / 6174 + bertrand_witness / 53 + bertrand_ok + euler + gauss / 55 + gauss_ok + triangular / 55 + figurate / 63 + catalan / 42 + catalan_ok + nicomachus + happy + automorphic + pal + triple + pell / 1000 + pell_lucas / 1000 + pell_id + pell_solution + sylvester / 2000 + sylvester_ok + ruth_aaron;
+    let highly = btoi(nats.is_highly_composite(12));
+    let perfect_totient = btoi(nats.is_perfect_totient(9));
+    let sphenic = btoi(nats.is_sphenic(30));
+    return enriched + bonus + energy + smooth + divisor_score + twin + sophie + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + goldbach_pair + goldbach_ok + ramanujan / 2 + taxicab + mersenne_prime + mersenne / 127 + kaprekar_constant / 6174 + bertrand_witness / 53 + bertrand_ok + euler + gauss / 55 + gauss_ok + triangular / 55 + figurate / 63 + catalan / 42 + catalan_ok + nicomachus + happy + automorphic + pal + triple + pell / 1000 + pell_lucas / 1000 + pell_id + pell_solution + sylvester / 2000 + sylvester_ok + ruth_aaron + highly + perfect_totient + sphenic;
 }

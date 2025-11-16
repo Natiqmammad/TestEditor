@@ -218,8 +218,9 @@ fn apex() {
 - **Import Patterns**: Whole-module imports, symbol imports, and aliasing.
 - **Utilities**: `btoi`, digit operations, divisor counts, classification helpers.
 - **Relations**: `gcd`, `lcm`, `coprime`, parity helpers, and localized aliases (`is_simple_number`, `is_murekkeb_number`).
-- **Advanced Number Theory**: `phi`, `digital_root`, `fact`, `nCr`, `modpow`, `modinv`, sieves, amicable checks, aliquot lengths, Fibonacci, Armstrong and Harshad predicates, perfect squares, power checks, Möbius function, Legendre symbol, quadratic residue tests, twin-prime/Sophie Germain/Cunningham detectors, Goldbach witnesses (`goldbach_holds`, `goldbach_witness`), Lucas–Lehmer/Mersenne helpers, Bertrand-postulate utilities (`bertrand_postulate`, `bertrand_prime`), Gauss-triangular-number helpers (`gauss_sum`, `gauss_sum_identity`), figurate utilities (`triangular_number`, `pentagonal_number`, `hexagonal_number`), Catalan/Nicomachus proofs (`catalan_number`, `catalan_theorem`, `nicomachus_theorem`), Pell and Sylvester sequences (`pell_number`, `pell_lucas_number`, `sylvester_number`) plus theorem validators (`pell_theorem`, `pell_equation`, `sylvester_identity`), happy/automorphic/palindromic classifiers (`is_happy`, `happy_steps`, `is_automorphic`, `is_palindromic`), `is_ruth_aaron_pair`, `pythagorean_triple`, and Fermat/Euler totient-theorem validators for fast sanity checks.
+- **Advanced Number Theory**: `phi`, `digital_root`, `fact`, `nCr`, `modpow`, `modinv`, sieves, amicable checks, aliquot lengths, Fibonacci, Armstrong and Harshad predicates, perfect squares, power checks, Möbius function, Legendre symbol, quadratic residue tests, twin-prime/Sophie Germain/Cunningham detectors, Goldbach witnesses (`goldbach_holds`, `goldbach_witness`), Lucas–Lehmer/Mersenne helpers, Bertrand-postulate utilities (`bertrand_postulate`, `bertrand_prime`), Gauss-triangular-number helpers (`gauss_sum`, `gauss_sum_identity`), figurate utilities (`triangular_number`, `pentagonal_number`, `hexagonal_number`), Catalan/Nicomachus proofs (`catalan_number`, `catalan_theorem`, `nicomachus_theorem`), Pell and Sylvester sequences (`pell_number`, `pell_lucas_number`, `sylvester_number`) plus theorem validators (`pell_theorem`, `pell_equation`, `sylvester_identity`), happy/automorphic/palindromic classifiers (`is_happy`, `happy_steps`, `is_automorphic`, `is_palindromic`), Hardy–Ramanujan utilities (`ramanujan_pairs`, `is_taxicab_number`), divisor-heavy classifiers (`is_highly_composite`, `is_perfect_totient`, `is_sphenic`), `is_ruth_aaron_pair`, `pythagorean_triple`, and Fermat/Euler totient-theorem validators for fast sanity checks.
 - **Kaprekar & Wilson Tooling**: `kaprekar_constant`, `is_kaprekar`, `kaprekar_theorem`, `kaprekar_6174_steps`, and `wilson_theorem` capture Kaprekar's constant/theorem workflows alongside Wilson's primality certificate so mathematical programs can reason directly about those results. `abs_value` rounds out the ergonomics when lifting signed ApexLang inputs into natural-number territory.
+- **Documentation**: [`docs/NATS_THEOREM_BOOK.md`](docs/NATS_THEOREM_BOOK.md) narrates every theorem helper with historical context, derivations, and runnable ApexLang samples so the growing `nats` catalogue reads like a miniature number-theory handbook.
 - **Totient-focused Proofs**: `euler_totient_theorem` and `phi` expose Euler's theorem under `BigInt`, enabling ApexLang routines to verify that `a^{φ(n)} ≡ 1 (mod n)` whenever `gcd(a, n) = 1`.
 - **Floating-Point Companion (`math`)**: Zero-arg constants `pi()`/`e()`, a numerically stable `abs` helper, and transcendental helpers (`sqrt`, `cbrt`, `hypot`, `pow`, `exp`, `ln`, `log`, `sin`, `cos`, `tan`) live beside the `nats` toolkit so ApexLang code can fluidly combine BigInt-heavy reasoning with analytic workloads.
 
@@ -259,6 +260,8 @@ fn apex() {
   let smooth = math.abs(-3.5);
   let goldbach_pair = nats.goldbach_witness(84);
   let goldbach_ok = btoi(nats.goldbach_holds(84));
+  let ramanujan = nats.ramanujan_pairs(1729);
+  let taxicab = btoi(nats.is_taxicab_number(1729));
   let mersenne = nats.mersenne_number(7);
   let mersenne_prime = btoi(nats.is_mersenne_prime(7));
   let bertrand_witness = nats.bertrand_prime(50);
@@ -282,7 +285,10 @@ fn apex() {
   let sylvester = nats.sylvester_number(4);
   let sylvester_ok = btoi(nats.sylvester_identity(4));
   let ruth_aaron = btoi(nats.is_ruth_aaron_pair(714, 715));
-  return enriched + bonus + energy + smooth + divisor_score + twin + sophie + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + goldbach_pair + goldbach_ok + mersenne_prime + mersenne / 127 + kaprekar_constant / 6174 + bertrand_witness / 53 + bertrand_ok + euler + gauss / 55 + gauss_ok + triangular / 55 + figurate / 63 + catalan / 42 + catalan_ok + nicomachus + happy + automorphic + pal + triple + pell / 1000 + pell_lucas / 1000 + pell_id + pell_solution + sylvester / 2000 + sylvester_ok + ruth_aaron;
+  let highly = btoi(nats.is_highly_composite(12));
+  let perfect_totient = btoi(nats.is_perfect_totient(9));
+  let sphenic = btoi(nats.is_sphenic(30));
+  return enriched + bonus + energy + smooth + divisor_score + twin + sophie + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + goldbach_pair + goldbach_ok + ramanujan / 2 + taxicab + mersenne_prime + mersenne / 127 + kaprekar_constant / 6174 + bertrand_witness / 53 + bertrand_ok + euler + gauss / 55 + gauss_ok + triangular / 55 + figurate / 63 + catalan / 42 + catalan_ok + nicomachus + happy + automorphic + pal + triple + pell / 1000 + pell_lucas / 1000 + pell_id + pell_solution + sylvester / 2000 + sylvester_ok + ruth_aaron + highly + perfect_totient + sphenic;
 }
 ```
 

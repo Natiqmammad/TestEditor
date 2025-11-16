@@ -26,6 +26,8 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!(functions, "sum_digits", sum_digits);
     add!(functions, "sum_digits_base", sum_digits_base);
     add!(functions, "num_digits", num_digits);
+    add!(functions, "ramanujan_pairs", ramanujan_pairs);
+    add!(functions, "is_taxicab_number", is_taxicab_number);
     add!(functions, "triangular_number", triangular_number);
     add!(functions, "is_triangular", is_triangular);
     add!(functions, "pentagonal_number", pentagonal_number);
@@ -47,6 +49,9 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!(functions, "is_perfect", is_perfect);
     add!(functions, "is_abundant", is_abundant);
     add!(functions, "is_deficient", is_deficient);
+    add!(functions, "is_highly_composite", is_highly_composite);
+    add!(functions, "is_perfect_totient", is_perfect_totient);
+    add!(functions, "is_sphenic", is_sphenic);
     add!(functions, "is_prime", is_prime);
     add!(functions, "is_composite", is_composite);
     add!(functions, "is_simple_number", is_simple_number);
@@ -248,6 +253,28 @@ fn num_digits(args: &[Value]) -> Result<Value, ApexError> {
     ))
 }
 
+fn ramanujan_pairs(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "ramanujan_pairs")?;
+    let value = expect_nat_arg(args, 0, "ramanujan_pairs")?;
+    let count = count_ramanujan_pairs(&value, "ramanujan_pairs")?;
+    Ok(Value::Int(BigInt::from(count)))
+}
+
+fn is_taxicab_number(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "is_taxicab_number")?;
+    let value = expect_nat_arg(args, 0, "is_taxicab_number")?;
+    let count = count_ramanujan_pairs(&value, "is_taxicab_number")?;
+    Ok(Value::Bool(count >= 2))
+}
+
+fn divisor_count_from_factors(factors: &[(u128, u32)]) -> u128 {
+    let mut count = 1u128;
+    for (_, exp) in factors {
+        count *= *exp as u128 + 1;
+    }
+    count
+}
+
 fn triangular_number(args: &[Value]) -> Result<Value, ApexError> {
     ensure_len(args, 1, "triangular_number")?;
     let n = expect_nat_arg(args, 0, "triangular_number")?;
@@ -371,14 +398,80 @@ fn sum_digits_impl(value: &BigInt, base: u32) -> BigInt {
     sum
 }
 
+fn count_ramanujan_pairs(n: &BigInt, name: &str) -> Result<u32, ApexError> {
+    if n.is_zero() {
+        return Ok(0);
+    }
+    let target = to_u128(n, name)?;
+    if target < 2 {
+        return Ok(0);
+    }
+    let limit = integer_cuberoot_u128(target);
+    let mut count = 0u32;
+    for a in 1..=limit {
+        let a_cube = match cube_value(a) {
+            Some(value) => value,
+            None => break,
+        };
+        if a_cube > target {
+            break;
+        }
+        for b in a..=limit {
+            let b_cube = match cube_value(b) {
+                Some(value) => value,
+                None => break,
+            };
+            match a_cube.checked_add(b_cube) {
+                Some(sum) => {
+                    if sum == target {
+                        count += 1;
+                    }
+                    if sum >= target {
+                        break;
+                    }
+                }
+                None => break,
+            }
+        }
+    }
+    Ok(count)
+}
+
+fn integer_cuberoot_u128(value: u128) -> u128 {
+    if value <= 1 {
+        return value;
+    }
+    let mut low = 0u128;
+    let mut high = value;
+    let mut result = 0u128;
+    while low <= high {
+        let mid = low + (high - low) / 2;
+        match cube_value(mid) {
+            Some(cube) if cube == value => return mid,
+            Some(cube) if cube < value => {
+                result = mid;
+                low = mid + 1;
+            }
+            _ => {
+                if mid == 0 {
+                    break;
+                }
+                high = mid - 1;
+            }
+        }
+    }
+    result
+}
+
+fn cube_value(value: u128) -> Option<u128> {
+    value.checked_mul(value)?.checked_mul(value)
+}
+
 fn divisors_count(args: &[Value]) -> Result<Value, ApexError> {
     ensure_len(args, 1, "divisors_count")?;
     let n = expect_nat_arg(args, 0, "divisors_count")?;
     let factors = prime_factors_u128(&n, "divisors_count")?;
-    let mut count = 1u128;
-    for (_, exp) in factors {
-        count *= exp as u128 + 1;
-    }
+    let count = divisor_count_from_factors(&factors);
     Ok(Value::Int(BigInt::from(count)))
 }
 
@@ -427,6 +520,65 @@ fn is_deficient(args: &[Value]) -> Result<Value, ApexError> {
     }
     let sum = sum_of_divisors(&n, "is_deficient")? - &n;
     Ok(Value::Bool(sum < n))
+}
+
+fn is_highly_composite(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "is_highly_composite")?;
+    let n = expect_nat_arg(args, 0, "is_highly_composite")?;
+    if n.is_zero() {
+        return Ok(Value::Bool(false));
+    }
+    let factors = prime_factors_u128(&n, "is_highly_composite")?;
+    let target_count = divisor_count_from_factors(&factors);
+    let value = to_u128(&n, "is_highly_composite")?;
+    if value <= 1 {
+        return Ok(Value::Bool(true));
+    }
+    for candidate in 1..value {
+        let candidate_bigint = BigInt::from(candidate);
+        let factors = prime_factors_u128(&candidate_bigint, "is_highly_composite_scan")?;
+        let count = divisor_count_from_factors(&factors);
+        if count >= target_count {
+            return Ok(Value::Bool(false));
+        }
+    }
+    Ok(Value::Bool(true))
+}
+
+fn is_perfect_totient(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "is_perfect_totient")?;
+    let n = expect_nat_arg(args, 0, "is_perfect_totient")?;
+    if n <= BigInt::one() {
+        return Ok(Value::Bool(false));
+    }
+    let mut sum = BigInt::zero();
+    let mut current = n.clone();
+    while current > BigInt::one() {
+        current = totient_value(&current, "is_perfect_totient")?;
+        sum += current.clone();
+        if sum > n {
+            return Ok(Value::Bool(false));
+        }
+    }
+    Ok(Value::Bool(sum == n))
+}
+
+fn is_sphenic(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "is_sphenic")?;
+    let n = expect_nat_arg(args, 0, "is_sphenic")?;
+    if n <= BigInt::one() {
+        return Ok(Value::Bool(false));
+    }
+    let factors = prime_factors_u128(&n, "is_sphenic")?;
+    if factors.len() != 3 {
+        return Ok(Value::Bool(false));
+    }
+    for (_, exp) in factors {
+        if exp != 1 {
+            return Ok(Value::Bool(false));
+        }
+    }
+    Ok(Value::Bool(true))
 }
 
 fn is_prime(args: &[Value]) -> Result<Value, ApexError> {
@@ -2066,5 +2218,35 @@ mod tests {
 
         let triple_false = pythagorean_triple(&[uint(2), uint(3), uint(4)]).unwrap();
         assert_eq!(triple_false, bool_value(false));
+    }
+
+    #[test]
+    fn ramanujan_and_composite_classifiers() {
+        let pairs = ramanujan_pairs(&[uint(1729)]).unwrap();
+        assert_eq!(pairs, uint(2));
+
+        let taxicab_true = is_taxicab_number(&[uint(1729)]).unwrap();
+        assert_eq!(taxicab_true, bool_value(true));
+
+        let taxicab_false = is_taxicab_number(&[uint(10)]).unwrap();
+        assert_eq!(taxicab_false, bool_value(false));
+
+        let highly = is_highly_composite(&[uint(12)]).unwrap();
+        assert_eq!(highly, bool_value(true));
+
+        let not_highly = is_highly_composite(&[uint(16)]).unwrap();
+        assert_eq!(not_highly, bool_value(false));
+
+        let perfect_totient = is_perfect_totient(&[uint(9)]).unwrap();
+        assert_eq!(perfect_totient, bool_value(true));
+
+        let imperfect_totient = is_perfect_totient(&[uint(8)]).unwrap();
+        assert_eq!(imperfect_totient, bool_value(false));
+
+        let sphenic = is_sphenic(&[uint(30)]).unwrap();
+        assert_eq!(sphenic, bool_value(true));
+
+        let not_sphenic = is_sphenic(&[uint(60)]).unwrap();
+        assert_eq!(not_sphenic, bool_value(false));
     }
 }

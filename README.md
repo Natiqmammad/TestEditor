@@ -8,7 +8,7 @@ In addition to AFNS, the repository now tracks the design of **APEXLANG**, a low
 
 ### ApexLang Prototype Interpreter
 
-The repository ships with a tiny prototype interpreter that understands the MVP syntax described in the design document. The interpreter now supports BigInt-backed integers, floating-point numbers, booleans, local bindings via `let`/`var`, user-defined helper functions, and a lightweight import system. By importing the built-in `nats` module you can call a rich catalogue of number-theory routines (`gcd`, `sum_digits`, `phi`, `divisors_count`, `modpow`, `is_prime`, …) directly from ApexLang source. Advanced primality helpers—including Fermat and strong pseudoprime predicates, a configurable Miller–Rabin driver, a Carmichael classifier, Wilson-theorem verification, Kaprekar classifications (constant/steps + theorem validation), twin-prime/Sophie Germain/Cunningham detectors, Goldbach-witness utilities, Lucas–Lehmer/Mersenne probes, Euler-totient-theorem and Gauss-sum validators, and Bertrand-postulate witnesses—round out the toolkit for building mathematically intensive programs. Figurate and sequence helpers (`triangular_number`, `pentagonal_number`, `hexagonal_number`, `catalan_number`, `catalan_theorem`, `nicomachus_theorem`, `pell_number`, `pell_lucas_number`, `sylvester_number`, `is_happy`, `happy_steps`, `is_automorphic`, `is_palindromic`, and `pythagorean_triple`) ensure the natural-number playground stays expressive, while theorem validators (`pell_theorem`, `pell_equation`, `sylvester_identity`, and `is_ruth_aaron_pair`) bring classical identities directly into source code. The module also exposes natural-number ergonomics such as `abs_value`, localized prime/composite aliases, and Kaprekar theorem checks for 4-digit flows.
+The repository ships with a tiny prototype interpreter that understands the MVP syntax described in the design document. The interpreter now supports BigInt-backed integers, floating-point numbers, booleans, local bindings via `let`/`var`, user-defined helper functions, and a lightweight import system. By importing the built-in `nats` module you can call a rich catalogue of number-theory routines (`gcd`, `sum_digits`, `phi`, `divisors_count`, `modpow`, `is_prime`, …) directly from ApexLang source. Advanced primality helpers—including Fermat and strong pseudoprime predicates, a configurable Miller–Rabin driver, a Carmichael classifier, Wilson-theorem verification, Kaprekar classifications (constant/steps + theorem validation), twin-prime/Sophie Germain/Cunningham detectors, Goldbach-witness utilities, Lucas–Lehmer/Mersenne probes, Euler-totient-theorem and Gauss-sum validators, and Bertrand-postulate witnesses—round out the toolkit for building mathematically intensive programs. Figurate and sequence helpers (`triangular_number`, `pentagonal_number`, `hexagonal_number`, `catalan_number`, `catalan_theorem`, `nicomachus_theorem`, `pell_number`, `pell_lucas_number`, `sylvester_number`, `is_happy`, `happy_steps`, `is_automorphic`, `is_palindromic`, and `pythagorean_triple`) ensure the natural-number playground stays expressive, while theorem validators (`pell_theorem`, `pell_equation`, `sylvester_identity`, and `is_ruth_aaron_pair`) bring classical identities directly into source code. Hardy–Ramanujan taxicab detectors (`ramanujan_pairs`, `is_taxicab_number`), highly composite/perfect totient classifiers, and `is_sphenic` expand the arithmetic search space, and the module also exposes natural-number ergonomics such as `abs_value`, localized prime/composite aliases, and Kaprekar theorem checks for 4-digit flows.
 
 For floating-point heavy workloads, the companion `math` module exposes zero-argument constants (`pi()`, `e()`), a numerically stable `abs` helper, and a sweep of analytic primitives: `sqrt`, `cbrt`, `hypot`, `pow`, `exp`, `ln`, `log`, `sin`, `cos`, and `tan`. The interpreter automatically widens integers to doubles so programs can blend `math` and `nats` calls in the same expressions without ceremony.
 
@@ -17,6 +17,8 @@ All native math intrinsics are covered by dedicated unit tests that validate mod
 #### Natural-number theorem catalog
 
 The `nats` module acts like a miniature research notebook for natural-number theorems. Each helper evaluates the predicate exactly as stated in classical texts, so ApexLang programs can stitch theorem proofs directly into their control flow:
+
+For a book-style walkthrough of every predicate—including derivations, intuition, and runnable ApexLang samples—see [`docs/NATS_THEOREM_BOOK.md`](docs/NATS_THEOREM_BOOK.md).
 
 | Function | Statement it validates | Result type |
 | --- | --- | --- |
@@ -34,6 +36,10 @@ The `nats` module acts like a miniature research notebook for natural-number the
 | `nats.sylvester_identity(n)` | Verifies `∏_{i=0}^{n} S_i = S_{n+1} - 1` for Sylvester numbers | `Bool` |
 | `nats.pythagorean_triple(a, b, c)` | Tests whether `(a, b, c)` obey `a^2 + b^2 = c^2` | `Bool` |
 | `nats.is_ruth_aaron_pair(a, b)` | Checks that consecutive integers share the same prime-factor sum (with multiplicity) | `Bool` |
+| `nats.ramanujan_pairs(n)` / `nats.is_taxicab_number(n)` | Counts cube decompositions and flags Hardy–Ramanujan taxicab numbers | `Int` / `Bool` |
+| `nats.is_highly_composite(n)` | Determines whether `n` beats every smaller integer's divisor count | `Bool` |
+| `nats.is_perfect_totient(n)` | Checks whether summing iterated totients returns `n` | `Bool` |
+| `nats.is_sphenic(n)` | Tests whether `n` is the product of three distinct primes | `Bool` |
 | `nats.fermat_little`, `nats.is_fermat_pseudoprime`, `nats.is_strong_pseudoprime`, `nats.miller_rabin_test` | Layered primality/pseudoprime diagnostics | `Bool` |
 
 Combine them freely with Fibonacci/Harshad/Armstrong/twin-prime predicates, divisor counters, and modular arithmetic primitives to script complex proofs over the natural numbers.
@@ -76,6 +82,8 @@ fn apex() {
     let smooth = math.abs(-3.5);
     let goldbach_pair = nats.goldbach_witness(84);
     let goldbach_ok = btoi(nats.goldbach_holds(84));
+    let ramanujan = nats.ramanujan_pairs(1729);
+    let taxicab = btoi(nats.is_taxicab_number(1729));
     let mersenne = nats.mersenne_number(7);
     let mersenne_prime = btoi(nats.is_mersenne_prime(7));
     let bertrand_witness = nats.bertrand_prime(50);
@@ -99,7 +107,10 @@ fn apex() {
     let sylvester = nats.sylvester_number(4);
     let sylvester_ok = btoi(nats.sylvester_identity(4));
     let ruth_aaron = btoi(nats.is_ruth_aaron_pair(714, 715));
-    return enriched + bonus + energy + smooth + divisor_score + twin + sophie + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + goldbach_pair + goldbach_ok + mersenne_prime + mersenne / 127 + kaprekar_constant / 6174 + bertrand_witness / 53 + bertrand_ok + euler + gauss / 55 + gauss_ok + triangular / 55 + figurate / 63 + catalan / 42 + catalan_ok + nicomachus + happy + automorphic + pal + triple + pell / 1000 + pell_lucas / 1000 + pell_id + pell_solution + sylvester / 2000 + sylvester_ok + ruth_aaron;
+    let highly = btoi(nats.is_highly_composite(12));
+    let perfect_totient = btoi(nats.is_perfect_totient(9));
+    let sphenic = btoi(nats.is_sphenic(30));
+    return enriched + bonus + energy + smooth + divisor_score + twin + sophie + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + goldbach_pair + goldbach_ok + ramanujan / 2 + taxicab + mersenne_prime + mersenne / 127 + kaprekar_constant / 6174 + bertrand_witness / 53 + bertrand_ok + euler + gauss / 55 + gauss_ok + triangular / 55 + figurate / 63 + catalan / 42 + catalan_ok + nicomachus + happy + automorphic + pal + triple + pell / 1000 + pell_lucas / 1000 + pell_id + pell_solution + sylvester / 2000 + sylvester_ok + ruth_aaron + highly + perfect_totient + sphenic;
 }
 ```
 
