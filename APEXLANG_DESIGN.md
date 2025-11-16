@@ -186,6 +186,7 @@ fn apex() {
 - **Architecture**: Serialized compiler snapshots mapped to ECS entities with interactive overlays.
 - **Configuration**: Optional feature flags (`--features viz`, `--xr`).
 - **Performance**: Focus on instanced rendering, level-of-detail, and hot-path highlighting.
+- **CLI Snapshot**: The MVP repository already exposes `cargo run --bin afns -- apex-viz --input <file> --output <dot>` to dump Graphviz DOT renderings of parsed ASTs, providing a textual stepping stone toward the immersive Bevy/OpenXR explorer.
 
 ## 25. Extended Math Standard Library
 - **Core**: `fact`, `fib`, `is_armstrong`, and the full natural-number toolkit are implemented over arbitrary-precision `BigInt` values in the MVP interpreter.
@@ -217,9 +218,9 @@ fn apex() {
 - **Import Patterns**: Whole-module imports, symbol imports, and aliasing.
 - **Utilities**: `btoi`, digit operations, divisor counts, classification helpers.
 - **Relations**: `gcd`, `lcm`, `coprime`, parity helpers, and localized aliases (`is_simple_number`, `is_murekkeb_number`).
-- **Advanced Number Theory**: `phi`, `digital_root`, `fact`, `nCr`, `modpow`, `modinv`, sieves, amicable checks, aliquot lengths, Fibonacci, Armstrong and Harshad predicates, perfect squares, power checks, Möbius function, Legendre symbol, quadratic residue tests, and twin-prime detection via `is_twin_prime`.
-- **Kaprekar & Wilson Tooling**: `kaprekar_constant`, `is_kaprekar`, `kaprekar_6174_steps`, and `wilson_theorem` capture Kaprekar's constant/theorem workflows alongside Wilson's primality certificate so mathematical programs can reason directly about those results.
-- **Floating-Point Companion (`math`)**: Zero-arg constants `pi()`/`e()` and transcendental helpers (`sqrt`, `cbrt`, `hypot`, `pow`, `exp`, `ln`, `log`, `sin`, `cos`, `tan`) live beside the `nats` toolkit so ApexLang code can fluidly combine BigInt-heavy reasoning with analytic workloads.
+- **Advanced Number Theory**: `phi`, `digital_root`, `fact`, `nCr`, `modpow`, `modinv`, sieves, amicable checks, aliquot lengths, Fibonacci, Armstrong and Harshad predicates, perfect squares, power checks, Möbius function, Legendre symbol, quadratic residue tests, twin-prime detection (`is_twin_prime`), and a dedicated Fermat-little-theorem validator for fast sanity checks.
+- **Kaprekar & Wilson Tooling**: `kaprekar_constant`, `is_kaprekar`, `kaprekar_theorem`, `kaprekar_6174_steps`, and `wilson_theorem` capture Kaprekar's constant/theorem workflows alongside Wilson's primality certificate so mathematical programs can reason directly about those results. `abs_value` rounds out the ergonomics when lifting signed ApexLang inputs into natural-number territory.
+- **Floating-Point Companion (`math`)**: Zero-arg constants `pi()`/`e()`, a numerically stable `abs` helper, and transcendental helpers (`sqrt`, `cbrt`, `hypot`, `pow`, `exp`, `ln`, `log`, `sin`, `cos`, `tan`) live beside the `nats` toolkit so ApexLang code can fluidly combine BigInt-heavy reasoning with analytic workloads.
 
 ## 29. Primality Testing Suite
 - Deterministic primality (`is_prime`), Fermat and strong pseudoprime classifiers, configurable Miller–Rabin rounds, and Carmichael number detection—all backed by dedicated BigInt regression tests in the `nats` module.
@@ -240,16 +241,21 @@ fn weighted_score(value) {
 }
 
 fn apex() {
-  let base = 270;
+  let signed = -270;
+  let base = nats.abs_value(signed);
   let enriched = weighted_score(base);
   let divisor_score = nats.divisors_count(base);
   let twin = btoi(nats.is_twin_prime(29));
   let kaprekar = btoi(nats.is_kaprekar(45));
   let wilson = btoi(nats.wilson_theorem(13));
+  let fermat = btoi(nats.fermat_little(5, 97));
+  let kaprekar_proof = btoi(nats.kaprekar_theorem(3524));
+  let kaprekar_steps = nats.kaprekar_6174_steps(3524);
   let kaprekar_constant = nats.kaprekar_constant();
   let bonus = btoi(prime(97));
   let energy = math.hypot(3, 4);
-  return enriched + bonus + energy + divisor_score + twin + kaprekar + wilson + kaprekar_constant / 6174;
+  let smooth = math.abs(-3.5);
+  return enriched + bonus + energy + smooth + divisor_score + twin + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + kaprekar_constant / 6174;
 }
 ```
 

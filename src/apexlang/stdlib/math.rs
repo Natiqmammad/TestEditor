@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
+#[cfg(test)]
 use num_bigint::BigInt;
-use num_traits::ToPrimitive;
+use num_traits::{Signed, ToPrimitive};
 
 use crate::apexlang::ast::Value;
 use crate::apexlang::error::ApexError;
@@ -22,6 +23,7 @@ pub(super) fn register(registry: &mut NativeRegistry) {
 
     add!(functions, "pi", pi);
     add!(functions, "e", e);
+    add!(functions, "abs", abs_fn);
     add!(functions, "sqrt", sqrt);
     add!(functions, "cbrt", cbrt);
     add!(functions, "hypot", hypot);
@@ -72,6 +74,17 @@ fn pi(_args: &[Value]) -> Result<Value, ApexError> {
 
 fn e(_args: &[Value]) -> Result<Value, ApexError> {
     Ok(Value::Number(std::f64::consts::E))
+}
+
+fn abs_fn(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "abs")?;
+    match args.get(0) {
+        Some(Value::Int(v)) => Ok(Value::Int(v.abs())),
+        Some(Value::Number(v)) => Ok(Value::Number(v.abs())),
+        _ => Err(ApexError::new(
+            "abs expects an integer or floating-point argument",
+        )),
+    }
 }
 
 fn sqrt(args: &[Value]) -> Result<Value, ApexError> {
@@ -168,6 +181,18 @@ mod tests {
     fn pow_handles_float_inputs() {
         let result = pow(&[num(2.0), num(10.0)]).unwrap();
         assert_eq!(result, num(1024.0));
+    }
+
+    #[test]
+    fn abs_handles_ints_and_numbers() {
+        let int_result = abs_fn(&[int(-42)]).unwrap();
+        assert_eq!(int_result, int(42));
+
+        let float_result = abs_fn(&[num(-3.5)]).unwrap();
+        assert_eq!(float_result, num(3.5));
+
+        let err = abs_fn(&[Value::Bool(true)]);
+        assert!(err.is_err());
     }
 
     #[test]

@@ -22,6 +22,7 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     }
 
     add!(functions, "btoi", btoi);
+    add!(functions, "abs_value", abs_value);
     add!(functions, "sum_digits", sum_digits);
     add!(functions, "sum_digits_base", sum_digits_base);
     add!(functions, "num_digits", num_digits);
@@ -36,6 +37,7 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!(functions, "is_simple_number", is_simple_number);
     add!(functions, "is_murekkeb_number", is_murekkeb_number);
     add!(functions, "is_twin_prime", is_twin_prime);
+    add!(functions, "fermat_little", fermat_little);
     add!(functions, "is_fermat_pseudoprime", is_fermat_pseudoprime);
     add!(functions, "is_strong_pseudoprime", is_strong_pseudoprime);
     add!(functions, "miller_rabin_test", miller_rabin_test);
@@ -51,6 +53,7 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!(functions, "fib", fib);
     add!(functions, "kaprekar_constant", kaprekar_constant);
     add!(functions, "is_kaprekar", is_kaprekar);
+    add!(functions, "kaprekar_theorem", kaprekar_theorem);
     add!(functions, "kaprekar_6174_steps", kaprekar_6174_steps);
     add!(functions, "wilson_theorem", wilson_theorem);
     add!(functions, "phi", phi);
@@ -163,6 +166,12 @@ fn btoi(args: &[Value]) -> Result<Value, ApexError> {
     } else {
         big_zero()
     }))
+}
+
+fn abs_value(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "abs_value")?;
+    let value = expect_int_arg(args, 0, "abs_value")?;
+    Ok(Value::Int(value.abs()))
 }
 
 fn sum_digits(args: &[Value]) -> Result<Value, ApexError> {
@@ -308,6 +317,22 @@ fn is_twin_prime(args: &[Value]) -> Result<Value, ApexError> {
         has_partner = is_prime_u128(&upper, "is_twin_prime")?;
     }
     Ok(Value::Bool(has_partner))
+}
+
+fn fermat_little(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 2, "fermat_little")?;
+    let base = expect_nat_arg(args, 0, "fermat_little")?;
+    let modulus = expect_nat_arg(args, 1, "fermat_little")?;
+    if modulus <= BigInt::one() {
+        return Err(ApexError::new("fermat_little requires modulus > 1"));
+    }
+    ensure_base_range(&base, &modulus, "fermat_little")?;
+    if !base.gcd(&modulus).is_one() {
+        return Ok(Value::Bool(false));
+    }
+    let exponent = &modulus - BigInt::one();
+    let residue = mod_pow(base, exponent, modulus.clone());
+    Ok(Value::Bool(residue == BigInt::one()))
 }
 
 fn is_fermat_pseudoprime(args: &[Value]) -> Result<Value, ApexError> {
@@ -514,6 +539,21 @@ fn is_kaprekar(args: &[Value]) -> Result<Value, ApexError> {
     Ok(Value::Bool(false))
 }
 
+fn kaprekar_theorem(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "kaprekar_theorem")?;
+    let n = expect_nat_arg(args, 0, "kaprekar_theorem")?;
+    let value = n
+        .to_u32()
+        .ok_or_else(|| ApexError::new("kaprekar_theorem currently supports inputs up to 32-bit"))?;
+    if value > 9999 {
+        return Err(ApexError::new(
+            "kaprekar_theorem expects a four-digit value (leading zeros allowed)",
+        ));
+    }
+    let holds = kaprekar_reaches_constant(value);
+    Ok(Value::Bool(holds))
+}
+
 fn kaprekar_6174_steps(args: &[Value]) -> Result<Value, ApexError> {
     ensure_len(args, 1, "kaprekar_6174_steps")?;
     let n = expect_nat_arg(args, 0, "kaprekar_6174_steps")?;
@@ -522,21 +562,43 @@ fn kaprekar_6174_steps(args: &[Value]) -> Result<Value, ApexError> {
     })?;
     let mut steps = 0u32;
     while current != 6174 && current != 0 {
-        let mut digits: Vec<u32> = format!("{current:04}")
-            .chars()
-            .map(|c| c.to_digit(10).unwrap())
-            .collect();
-        digits.sort();
-        let small: u32 = digits.iter().fold(0, |acc, &d| acc * 10 + d);
-        digits.reverse();
-        let large: u32 = digits.iter().fold(0, |acc, &d| acc * 10 + d);
-        current = large - small;
+        current = kaprekar_step(current);
         steps += 1;
         if steps > 100 {
             break;
         }
     }
     Ok(Value::Int(BigInt::from(steps)))
+}
+
+fn kaprekar_reaches_constant(mut value: u32) -> bool {
+    if !kaprekar_has_distinct_digits(value) {
+        return false;
+    }
+    for _ in 0..8 {
+        if value == 6174 {
+            return true;
+        }
+        value = kaprekar_step(value);
+    }
+    value == 6174
+}
+
+fn kaprekar_step(value: u32) -> u32 {
+    let mut digits: Vec<u32> = format!("{value:04}")
+        .chars()
+        .map(|c| c.to_digit(10).unwrap())
+        .collect();
+    digits.sort();
+    let small: u32 = digits.iter().fold(0, |acc, &d| acc * 10 + d);
+    digits.reverse();
+    let large: u32 = digits.iter().fold(0, |acc, &d| acc * 10 + d);
+    large - small
+}
+
+fn kaprekar_has_distinct_digits(value: u32) -> bool {
+    let digits: Vec<char> = format!("{value:04}").chars().collect();
+    digits.iter().any(|d| *d != digits[0])
 }
 
 fn wilson_theorem(args: &[Value]) -> Result<Value, ApexError> {
@@ -1128,6 +1190,27 @@ mod tests {
 
         let carmichael_val = carmichael(&[uint(45)]).unwrap();
         assert_eq!(carmichael_val, uint(12));
+    }
+
+    #[test]
+    fn absolute_and_theorem_helpers() {
+        let absolute = abs_value(&[int(-270)]).unwrap();
+        assert_eq!(absolute, uint(270));
+
+        let fermat_holds = fermat_little(&[uint(5), uint(97)]).unwrap();
+        assert_eq!(fermat_holds, bool_value(true));
+
+        let fermat_breaks = fermat_little(&[uint(5), uint(15)]).unwrap();
+        assert_eq!(fermat_breaks, bool_value(false));
+
+        let kaprekar_true = kaprekar_theorem(&[uint(3524)]).unwrap();
+        assert_eq!(kaprekar_true, bool_value(true));
+
+        let kaprekar_false = kaprekar_theorem(&[uint(1111)]).unwrap();
+        assert_eq!(kaprekar_false, bool_value(false));
+
+        let err = kaprekar_theorem(&[uint(20_000)]);
+        assert!(err.is_err());
     }
 
     #[test]
