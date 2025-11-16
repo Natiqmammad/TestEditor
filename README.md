@@ -2,6 +2,72 @@
 
 ApexForge NightScript is a hybrid programming language designed for system programming and high-level applications. It combines the performance of low-level languages with the productivity of high-level languages, featuring a unique syntax and comprehensive type system.
 
+## APEXLANG Design Exploration
+
+In addition to AFNS, the repository now tracks the design of **APEXLANG**, a low-level systems language targeting deterministic and high-performance mathematical workloads. Review the full specification, including syntax snapshots, compilation pipeline, and roadmap, in [`APEXLANG_DESIGN.md`](APEXLANG_DESIGN.md).
+
+### ApexLang Prototype Interpreter
+
+The repository ships with a tiny prototype interpreter that understands the MVP syntax described in the design document. The interpreter now supports BigInt-backed integers, floating-point numbers, booleans, local bindings via `let`/`var`, user-defined helper functions, and a lightweight import system. By importing the built-in `nats` module you can call a rich catalogue of number-theory routines (`gcd`, `sum_digits`, `phi`, `divisors_count`, `modpow`, `is_prime`, …) directly from ApexLang source. Advanced primality helpers—including Fermat and strong pseudoprime predicates, a configurable Miller–Rabin driver, a Carmichael classifier, Wilson-theorem verification, Kaprekar classifications (constant/steps + theorem validation), twin-prime/Sophie Germain/Cunningham detectors, Goldbach-witness utilities, Lucas–Lehmer/Mersenne probes, and a Fermat-little-theorem witness checker—round out the toolkit for building mathematically intensive programs. The module also exposes natural-number ergonomics such as `abs_value`, localized prime/composite aliases, and Kaprekar theorem checks for 4-digit flows.
+
+For floating-point heavy workloads, the companion `math` module exposes zero-argument constants (`pi()`, `e()`), a numerically stable `abs` helper, and a sweep of analytic primitives: `sqrt`, `cbrt`, `hypot`, `pow`, `exp`, `ln`, `log`, `sin`, `cos`, and `tan`. The interpreter automatically widens integers to doubles so programs can blend `math` and `nats` calls in the same expressions without ceremony.
+
+All native math intrinsics are covered by dedicated unit tests that validate modular arithmetic, Möbius/Legendre symbols, aliquot dynamics, and perfect-power detection against BigInt references—helping ensure the language delivers trustworthy results for demanding numerical workloads.
+
+```bash
+cargo run --bin afns -- apex --input examples/apex/demo.apx
+```
+
+The example program combines mutable state and standard-library calls:
+
+```apex
+import math;
+import nats;
+import nats.btoi;
+import nats.is_prime as prime;
+
+fn weighted_score(value) {
+    var score = nats.gcd(value, 192);
+    let curvature = math.sqrt(144);
+    let trig = math.sin(math.pi() / 4);
+    score = score * 2 + curvature;
+    return score + nats.sum_digits(value) + math.pow(trig, 2);
+}
+
+fn apex() {
+    let signed = -270;
+    let base = nats.abs_value(signed);
+    let enriched = weighted_score(base);
+    let divisor_score = nats.divisors_count(base);
+    let twin = btoi(nats.is_twin_prime(29));
+    let sophie = btoi(nats.is_sophie_germain_prime(23));
+    let kaprekar = btoi(nats.is_kaprekar(45));
+    let wilson = btoi(nats.wilson_theorem(13));
+    let fermat = btoi(nats.fermat_little(5, 97));
+    let kaprekar_proof = btoi(nats.kaprekar_theorem(3524));
+    let kaprekar_steps = nats.kaprekar_6174_steps(3524);
+    let kaprekar_constant = nats.kaprekar_constant();
+    let bonus = btoi(prime(97));
+    let energy = math.hypot(3, 4);
+    let smooth = math.abs(-3.5);
+    let goldbach_pair = nats.goldbach_witness(84);
+    let goldbach_ok = btoi(nats.goldbach_holds(84));
+    let mersenne = nats.mersenne_number(7);
+    let mersenne_prime = btoi(nats.is_mersenne_prime(7));
+    return enriched + bonus + energy + smooth + divisor_score + twin + sophie + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + goldbach_pair + goldbach_ok + mersenne_prime + mersenne / 127 + kaprekar_constant / 6174;
+}
+```
+
+Running the interpreter reports the computed result on stdout, making it easy to experiment with early language ideas and validate the growing mathematical toolchain. When you want to *see* what the interpreter is parsing, the visualization command can emit Graphviz DOT text or—when Graphviz is available—pipe the IR directly into `dot` for SVG/PNG output:
+
+```bash
+cargo run --bin afns -- apex-viz --input examples/apex/demo.apx --output demo.dot
+cargo run --bin afns -- apex-viz --input examples/apex/demo.apx --output demo.svg --format svg
+cargo run --bin afns -- apex-viz --input examples/apex/demo.apx --output demo.png --format png
+```
+
+The generated diagram highlights every function, statement, and expression edge, making it trivial to inspect evaluation order or handwave optimizations during the research phase.
+
 ## Features
 
 ### Unique Syntax

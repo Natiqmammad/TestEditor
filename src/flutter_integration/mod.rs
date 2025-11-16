@@ -265,11 +265,11 @@ flutter:
 mod tests {
     use super::*;
     use crate::ast::Program;
-    
+
     #[test]
     fn test_flutter_integration_android() {
-        let integration = FlutterIntegration::new();
-        let program = Program { items: vec![] };
+        let mut integration = FlutterIntegration::new();
+        let program = Program::default();
         let target = FluentTarget {
             arch: "aarch64-linux-android".to_string(),
             sdk_version: "23".to_string(),
@@ -282,8 +282,8 @@ mod tests {
     
     #[test]
     fn test_flutter_integration_ios() {
-        let integration = FlutterIntegration::new();
-        let program = Program { items: vec![] };
+        let mut integration = FlutterIntegration::new();
+        let program = Program::default();
         let target = FluentTarget {
             arch: "aarch64-apple-ios".to_string(),
             sdk_version: "15.0".to_string(),
@@ -296,8 +296,8 @@ mod tests {
     
     #[test]
     fn test_flutter_integration_web() {
-        let integration = FlutterIntegration::new();
-        let program = Program { items: vec![] };
+        let mut integration = FlutterIntegration::new();
+        let program = Program::default();
         let target = FluentTarget {
             arch: "wasm32-wasi".to_string(),
             sdk_version: "1.0".to_string(),

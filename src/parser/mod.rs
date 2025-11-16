@@ -12,7 +12,6 @@ use std::collections::VecDeque;
 pub struct Parser {
     tokens: VecDeque<TokenWithSpan>,
     current: usize,
-    function_overloads: std::collections::HashMap<String, FunctionOverload>,
 }
 
 impl Parser {
@@ -21,7 +20,6 @@ impl Parser {
         Self {
             tokens: tokens.into(),
             current: 0,
-            function_overloads: std::collections::HashMap::new(),
         }
     }
     
@@ -34,12 +32,7 @@ impl Parser {
                 program.add_item(item);
             }
         }
-        
-        // Add all function overloads to the program
-        for (_, overload_group) in self.function_overloads.drain() {
-            program.add_item(Item::FunctionOverload(overload_group));
-        }
-        
+
         Ok(program)
     }
     
@@ -71,22 +64,7 @@ impl Parser {
                 self.expect_semicolon()?;
                 Ok(Some(Item::Import(module_name)))
             }
-            Some(Token::Fun) => {
-                let function = self.parse_function()?;
-                
-                // Check if this function name already exists
-                if let Some(existing_overload) = self.function_overloads.get_mut(&function.name) {
-                    // Add to existing overload group
-                    existing_overload.add_overload(function);
-                    Ok(None) // Don't add as separate item
-                } else {
-                    // Create new overload group
-                    let mut overload_group = FunctionOverload::new(function.name.clone(), function.span);
-                    overload_group.add_overload(function);
-                    self.function_overloads.insert(overload_group.name.clone(), overload_group);
-                    Ok(None) // Don't add as separate item, will be added at the end
-                }
-            }
+            Some(Token::Fun) => Ok(Some(Item::Function(self.parse_function()?))),
             Some(Token::Struct) => {
                 let struct_def = self.parse_struct()?;
                 Ok(Some(Item::Struct(struct_def)))

@@ -795,8 +795,6 @@ pub fn afns_demo_workflow() -> String {
     results.push(afns_create_button("btn3".to_string(), "Run".to_string(), 250, 50));
     
     // Create text fields
-    results.push(afns_create_text_field("txt1".to_string(), "Project Name".to_string());
-
     results.push(afns_create_text_field(
         "txt1".to_string(),
         "Project Name".to_string(),
