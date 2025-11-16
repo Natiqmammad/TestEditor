@@ -218,6 +218,7 @@ fn apex() {
 - **Utilities**: `btoi`, digit operations, divisor counts, classification helpers.
 - **Relations**: `gcd`, `lcm`, `coprime` and parity helpers.
 - **Advanced Number Theory**: `phi`, `digital_root`, `fact`, `nCr`, `modpow`, `modinv`, sieves, amicable checks, aliquot lengths, Fibonacci, Armstrong numbers, perfect squares, power checks, Möbius function, Legendre symbol, quadratic residue tests.
+- **Floating-Point Companion (`math`)**: Zero-arg constants `pi()`/`e()` and transcendental helpers (`sqrt`, `cbrt`, `hypot`, `pow`, `exp`, `ln`, `log`, `sin`, `cos`, `tan`) live beside the `nats` toolkit so ApexLang code can fluidly combine BigInt-heavy reasoning with analytic workloads.
 
 ## 29. Primality Testing Suite
 - Deterministic primality (`is_prime`), Fermat and strong pseudoprime classifiers, configurable Miller–Rabin rounds, and Carmichael number detection—all backed by dedicated BigInt regression tests in the `nats` module.

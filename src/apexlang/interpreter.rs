@@ -583,4 +583,28 @@ mod tests {
         let value = evaluate_source(source).expect("evaluation succeeded");
         assert_eq!(value, Value::Int(10.into()));
     }
+
+    #[test]
+    fn mixes_math_and_nats_modules() {
+        let source = r#"
+            import math;
+            import nats;
+            import nats.btoi;
+
+            fn apex() {
+                let curvature = math.sqrt(144);
+                let trig = math.sin(math.pi() / 4);
+                let digits = nats.sum_digits(270);
+                let hyp = math.hypot(3, 4);
+                let bonus = btoi(nats.is_prime(97));
+                return curvature + math.pow(trig, 2) + digits + hyp + bonus;
+            }
+        "#;
+
+        let value = evaluate_source(source).expect("evaluation succeeded");
+        match value {
+            Value::Number(v) => assert!((v - 27.5).abs() < 1e-9),
+            other => panic!("expected floating point result, got {:?}", other),
+        }
+    }
 }

@@ -34,6 +34,7 @@ impl NativeRegistry {
     pub fn with_standard_library() -> Self {
         let mut registry = Self::default();
         nats::register(&mut registry);
+        math::register(&mut registry);
         registry
     }
 
@@ -54,4 +55,5 @@ impl NativeRegistry {
     }
 }
 
+mod math;
 mod nats;
