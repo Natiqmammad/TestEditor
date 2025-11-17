@@ -59,6 +59,20 @@ fn apex() {
 }
 ```
 
+### `nats.is_semiperfect(n)`, `nats.is_weird(n)`
+- **Statement**: `is_semiperfect` finds numbers that equal a sum of distinct proper divisors; `is_weird` flags abundant numbers with no such subset (e.g., 70).
+- **Key idea**: Semiperfect numbers satisfy a subset-sum constraint, while weird numbers are abundant yet resistant to that combination search.
+- **Example**:
+```apex
+import nats;
+
+fn apex() {
+  let semi = nats.btoi(nats.is_semiperfect(20));
+  let weird = nats.btoi(nats.is_weird(70));
+  return semi * 10 + weird;
+}
+```
+
 ### `nats.is_sphenic(n)`
 - **Statement**: Confirms `n` is the product of three distinct primes (each with exponent 1).
 - **Key idea**: Sphenic numbers like 30 = 2·3·5 encode exactly three prime factors.
@@ -68,6 +82,18 @@ import nats;
 
 fn apex() {
   return nats.btoi(nats.is_sphenic(30));
+}
+```
+
+### `nats.is_refactorable(n)`
+- **Statement**: Determines whether the divisor count `τ(n)` divides `n`—characteristic of refactorable (or tau) numbers.
+- **Key idea**: Numbers like 24 have 8 divisors, and 24 is divisible by 8; the predicate enforces this divisibility rule.
+- **Example**:
+```apex
+import nats;
+
+fn apex() {
+  return nats.btoi(nats.is_refactorable(24));
 }
 ```
 
@@ -303,6 +329,30 @@ fn apex() {
 
 ### `nats.is_automorphic(n)`, `nats.is_palindromic(n)`
 - **Statement**: Determine whether `n^2` ends with `n` or whether the digits read the same backward.
+
+### `nats.is_pernicious(n)`
+- **Statement**: Declares numbers whose binary expansion contains a prime number of `1` bits.
+- **Key idea**: Counting `1`s in the binary string (`popcount`) and checking primality exposes pernicious numbers like 17 (binary `10001`).
+- **Example**:
+```apex
+import nats;
+
+fn apex() {
+  return nats.btoi(nats.is_pernicious(17));
+}
+```
+
+### `nats.is_smith_number(n)`
+- **Statement**: Flags composite numbers whose digit sum equals the sum of the digits of their prime factors (with multiplicity).
+- **Key idea**: 666 is the canonical example: `6+6+6 = 18` matches the sum of digits of `2·3·3·37`.
+- **Example**:
+```apex
+import nats;
+
+fn apex() {
+  return nats.btoi(nats.is_smith_number(666));
+}
+```
 
 ### `nats.kaprekar_constant()`, `nats.kaprekar_theorem(n)`, `nats.kaprekar_6174_steps(n)`, `nats.is_kaprekar(n)`
 - **Statement**: Navigate Kaprekar's 6174 routine—count steps to converge and validate classic 4-digit Kaprekar numbers.

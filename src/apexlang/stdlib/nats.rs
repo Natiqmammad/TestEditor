@@ -52,9 +52,12 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!(functions, "is_perfect", is_perfect);
     add!(functions, "is_abundant", is_abundant);
     add!(functions, "is_deficient", is_deficient);
+    add!(functions, "is_semiperfect", is_semiperfect);
+    add!(functions, "is_weird", is_weird);
     add!(functions, "is_highly_composite", is_highly_composite);
     add!(functions, "is_perfect_totient", is_perfect_totient);
     add!(functions, "is_sphenic", is_sphenic);
+    add!(functions, "is_refactorable", is_refactorable);
     add!(functions, "is_prime", is_prime);
     add!(functions, "is_composite", is_composite);
     add!(functions, "is_simple_number", is_simple_number);
@@ -71,6 +74,8 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!(functions, "is_strong_pseudoprime", is_strong_pseudoprime);
     add!(functions, "miller_rabin_test", miller_rabin_test);
     add!(functions, "is_harshad", is_harshad);
+    add!(functions, "is_pernicious", is_pernicious);
+    add!(functions, "is_smith_number", is_smith_number);
     add!(functions, "is_armstrong", is_armstrong);
     add!(functions, "gcd", gcd);
     add!(functions, "lcm", lcm);
@@ -557,6 +562,25 @@ fn is_deficient(args: &[Value]) -> Result<Value, ApexError> {
     Ok(Value::Bool(sum < n))
 }
 
+fn is_semiperfect(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "is_semiperfect")?;
+    let n = expect_nat_arg(args, 0, "is_semiperfect")?;
+    Ok(Value::Bool(is_semiperfect_value(&n, "is_semiperfect")?))
+}
+
+fn is_weird(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "is_weird")?;
+    let n = expect_nat_arg(args, 0, "is_weird")?;
+    if n <= BigInt::from(1u8) {
+        return Ok(Value::Bool(false));
+    }
+    let sum = sum_of_divisors(&n, "is_weird")? - &n;
+    if sum <= n {
+        return Ok(Value::Bool(false));
+    }
+    Ok(Value::Bool(!is_semiperfect_value(&n, "is_weird")?))
+}
+
 fn is_highly_composite(args: &[Value]) -> Result<Value, ApexError> {
     ensure_len(args, 1, "is_highly_composite")?;
     let n = expect_nat_arg(args, 0, "is_highly_composite")?;
@@ -614,6 +638,18 @@ fn is_sphenic(args: &[Value]) -> Result<Value, ApexError> {
         }
     }
     Ok(Value::Bool(true))
+}
+
+fn is_refactorable(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "is_refactorable")?;
+    let n = expect_nat_arg(args, 0, "is_refactorable")?;
+    if n.is_zero() {
+        return Ok(Value::Bool(false));
+    }
+    let factors = prime_factors_u128(&n, "is_refactorable")?;
+    let tau = divisor_count_from_factors(&factors);
+    let tau_big = BigInt::from(tau);
+    Ok(Value::Bool((&n % tau_big) == big_zero()))
 }
 
 fn is_prime(args: &[Value]) -> Result<Value, ApexError> {
@@ -793,6 +829,16 @@ fn is_harshad(args: &[Value]) -> Result<Value, ApexError> {
     ))
 }
 
+fn is_pernicious(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "is_pernicious")?;
+    let n = expect_nat_arg(args, 0, "is_pernicious")?;
+    if n.is_zero() {
+        return Ok(Value::Bool(false));
+    }
+    let ones = n.to_str_radix(2).chars().filter(|c| *c == '1').count() as u128;
+    Ok(Value::Bool(is_prime_raw(ones)))
+}
+
 fn is_armstrong(args: &[Value]) -> Result<Value, ApexError> {
     ensure_len(args, 1, "is_armstrong")?;
     let n = expect_nat_arg(args, 0, "is_armstrong")?;
@@ -807,6 +853,26 @@ fn is_armstrong(args: &[Value]) -> Result<Value, ApexError> {
         sum += BigInt::from(d).pow(power);
     }
     Ok(Value::Bool(sum == n))
+}
+
+fn is_smith_number(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "is_smith_number")?;
+    let n = expect_nat_arg(args, 0, "is_smith_number")?;
+    if n <= BigInt::from(1u8) {
+        return Ok(Value::Bool(false));
+    }
+    let value = to_u128(&n, "is_smith_number")?;
+    if is_prime_raw(value) {
+        return Ok(Value::Bool(false));
+    }
+    let digit_sum = sum_digits_impl(&n, 10);
+    let factors = prime_factors_u128(&n, "is_smith_number")?;
+    let mut factor_digit_sum = big_zero();
+    for (prime, exp) in factors {
+        let prime_digits = sum_digits_impl(&BigInt::from(prime), 10);
+        factor_digit_sum += prime_digits * BigInt::from(exp);
+    }
+    Ok(Value::Bool(digit_sum == factor_digit_sum))
 }
 
 fn gcd(args: &[Value]) -> Result<Value, ApexError> {
@@ -1624,6 +1690,17 @@ fn lucas_lehmer(args: &[Value]) -> Result<Value, ApexError> {
     Ok(Value::Bool(lucas_lehmer_sequence(p)))
 }
 
+fn is_semiperfect_value(n: &BigInt, name: &str) -> Result<bool, ApexError> {
+    if n <= &BigInt::one() {
+        return Ok(false);
+    }
+    let divisors = proper_divisors_list(n, name)?;
+    if divisors.is_empty() {
+        return Ok(false);
+    }
+    Ok(subset_sum_reaches(&divisors, n))
+}
+
 fn is_mersenne_prime(args: &[Value]) -> Result<Value, ApexError> {
     ensure_len(args, 1, "is_mersenne_prime")?;
     let exponent = expect_nat_arg(args, 0, "is_mersenne_prime")?;
@@ -1635,6 +1712,57 @@ fn is_mersenne_prime(args: &[Value]) -> Result<Value, ApexError> {
         return Ok(Value::Bool(false));
     }
     Ok(Value::Bool(lucas_lehmer_sequence(p)))
+}
+
+fn proper_divisors_list(n: &BigInt, name: &str) -> Result<Vec<BigInt>, ApexError> {
+    if n.is_zero() {
+        return Err(ApexError::new(format!(
+            "{} expects positive integers",
+            name
+        )));
+    }
+    if n <= &BigInt::one() {
+        return Ok(Vec::new());
+    }
+    let factors = prime_factors_u128(n, name)?;
+    let mut divisors = vec![BigInt::one()];
+    for (prime, exp) in factors {
+        let snapshot = divisors.clone();
+        let prime_big = BigInt::from(prime);
+        let mut new_values = Vec::new();
+        for power in 1..=exp {
+            let factor = prime_big.pow(power);
+            for value in &snapshot {
+                new_values.push(value * factor.clone());
+            }
+        }
+        divisors.extend(new_values);
+    }
+    divisors.retain(|d| d != n);
+    divisors.sort();
+    divisors.dedup();
+    Ok(divisors)
+}
+
+fn subset_sum_reaches(divisors: &[BigInt], target: &BigInt) -> bool {
+    let mut reachable: HashSet<BigInt> = HashSet::new();
+    reachable.insert(big_zero());
+    for divisor in divisors {
+        let mut pending = Vec::new();
+        for sum in &reachable {
+            let next = sum + divisor;
+            if &next == target {
+                return true;
+            }
+            if &next < target {
+                pending.push(next);
+            }
+        }
+        for value in pending {
+            reachable.insert(value);
+        }
+    }
+    reachable.contains(target)
 }
 
 fn sum_of_divisors(n: &BigInt, name: &str) -> Result<BigInt, ApexError> {
@@ -2394,6 +2522,39 @@ mod tests {
 
         let not_sphenic = is_sphenic(&[uint(60)]).unwrap();
         assert_eq!(not_sphenic, bool_value(false));
+    }
+
+    #[test]
+    fn semiperfect_weird_and_digit_classifiers() {
+        let semiperfect = is_semiperfect(&[uint(20)]).unwrap();
+        assert_eq!(semiperfect, bool_value(true));
+
+        let not_semiperfect = is_semiperfect(&[uint(71)]).unwrap();
+        assert_eq!(not_semiperfect, bool_value(false));
+
+        let weird = is_weird(&[uint(70)]).unwrap();
+        assert_eq!(weird, bool_value(true));
+
+        let not_weird = is_weird(&[uint(12)]).unwrap();
+        assert_eq!(not_weird, bool_value(false));
+
+        let pernicious = is_pernicious(&[uint(17)]).unwrap();
+        assert_eq!(pernicious, bool_value(true));
+
+        let not_pernicious = is_pernicious(&[uint(8)]).unwrap();
+        assert_eq!(not_pernicious, bool_value(false));
+
+        let refactorable = is_refactorable(&[uint(24)]).unwrap();
+        assert_eq!(refactorable, bool_value(true));
+
+        let non_refactorable = is_refactorable(&[uint(27)]).unwrap();
+        assert_eq!(non_refactorable, bool_value(false));
+
+        let smith = is_smith_number(&[uint(666)]).unwrap();
+        assert_eq!(smith, bool_value(true));
+
+        let not_smith = is_smith_number(&[uint(13)]).unwrap();
+        assert_eq!(not_smith, bool_value(false));
     }
 
     #[test]
