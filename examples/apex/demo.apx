@@ -2,6 +2,8 @@ import math;
 import nats;
 import nats.btoi;
 import nats.is_prime as prime;
+import fractions;
+import fractions.decimal_to_fraction as to_fraction;
 
 fn weighted_score(value) {
     var score = nats.gcd(value, 192);
@@ -67,5 +69,19 @@ fn apex() {
     let lucky_value = nats.lucky_number(10);
     let lucky_flag = btoi(nats.is_lucky_number(21));
     let bell = nats.bell_number(5);
-    return enriched + bonus + energy + smooth + divisor_score + twin + sophie + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + goldbach_pair + goldbach_ok + ramanujan / 2 + taxicab + mersenne_prime + mersenne / 127 + kaprekar_constant / 6174 + bertrand_witness / 53 + bertrand_ok + euler + gauss / 55 + gauss_ok + triangular / 55 + figurate / 63 + catalan / 42 + catalan_ok + nicomachus + happy + automorphic + pal + triple + pell / 1000 + pell_lucas / 1000 + pell_id + pell_solution + sylvester / 2000 + sylvester_ok + ruth_aaron + highly + perfect_totient + sphenic + semiperfect + weird + refactorable + pernicious + smith + collatz / 50 + collatz_peak / 100 + lucky_value / 25 + lucky_flag + bell / 100;
+    let classroom_ratio = fractions.fraction_add(1, 3, 1, 6);
+    let ratio_decimal = fractions.fraction_to_decimal(classroom_ratio);
+    let ratio_num = fractions.fraction_numerator(classroom_ratio);
+    let ratio_den = fractions.fraction_denominator(classroom_ratio);
+    let ratio_proper = btoi(fractions.fraction_is_proper(classroom_ratio));
+    let ratio_terminating = btoi(fractions.fraction_is_terminating(classroom_ratio));
+    let ratio_period = fractions.fraction_period_length(classroom_ratio);
+    let benchmark = to_fraction(0.8125, 256);
+    let benchmark_decimal = fractions.fraction_to_decimal(benchmark);
+    let mediant = fractions.fraction_mediant(classroom_ratio, benchmark);
+    let mediant_decimal = fractions.fraction_to_decimal(mediant);
+    let mediant_neighbors = btoi(fractions.fraction_farey_neighbors(classroom_ratio, benchmark));
+    let reciprocal = fractions.fraction_reciprocal(benchmark);
+    let reciprocal_decimal = fractions.fraction_to_decimal(reciprocal);
+    return enriched + bonus + energy + smooth + divisor_score + twin + sophie + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + goldbach_pair + goldbach_ok + ramanujan / 2 + taxicab + mersenne_prime + mersenne / 127 + kaprekar_constant / 6174 + bertrand_witness / 53 + bertrand_ok + euler + gauss / 55 + gauss_ok + triangular / 55 + figurate / 63 + catalan / 42 + catalan_ok + nicomachus + happy + automorphic + pal + triple + pell / 1000 + pell_lucas / 1000 + pell_id + pell_solution + sylvester / 2000 + sylvester_ok + ruth_aaron + highly + perfect_totient + sphenic + semiperfect + weird + refactorable + pernicious + smith + collatz / 50 + collatz_peak / 100 + lucky_value / 25 + lucky_flag + bell / 100 + ratio_decimal + ratio_num + ratio_den + ratio_proper + ratio_terminating + ratio_period / 10.0 + benchmark_decimal + mediant_decimal + mediant_neighbors + reciprocal_decimal;
 }

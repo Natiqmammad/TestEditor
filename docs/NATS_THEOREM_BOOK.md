@@ -491,3 +491,46 @@ fn apex() {
 ---
 
 Every function documented here is available inside the prototype interpreter. Mix and match them freely—combine `math` intrinsics with `nats` helpers to build experimental number-theory pipelines that execute directly inside ApexLang.
+
+## Ordinary and Decimal Fractions
+
+While the `nats` module focuses on natural numbers, the companion `fractions` module keeps ordinary and decimal fractions close at hand so theorem-heavy ApexLang programs can reason about rational tricks without leaving the language.
+
+### Core operations
+
+* `fractions.fraction_reduce(n, d)` cleans up a raw numerator/denominator pair and returns a tuple `(num, den)` that every other helper accepts. The return type is itself a tuple value, so you can write `let ratio = fractions.fraction_reduce(8, 12);` once and feed `ratio` straight into the rest of the API.
+* `fractions.fraction_add/subtract/multiply/divide(a, b)` perform exact rational arithmetic, accepting either two tuples or four integers. Results are always reduced; that means chaining operations never silently overflows denominators.
+* `fractions.fraction_numerator(f)` / `fractions.fraction_denominator(f)` extract components from tuple values. They make it easy to mix fraction results with the `nats` helpers (`let num = fractions.fraction_numerator(ratio); let gcd = nats.gcd(num, 192);`).
+
+### Decimal diagnostics and conversions
+
+* `fractions.fraction_is_terminating(f)` returns `true` exactly when the reduced denominator contains no prime factor other than 2 or 5. This implements the classroom theorem describing when a rational number has a terminating decimal expansion.
+* `fractions.fraction_period_length(f)` walks the multiplicative order of 10 modulo the denominator—after removing factors of 2 and 5—to measure the repeating block of the decimal expansion.
+* `fractions.fraction_to_decimal(f)` creates a floating-point approximation (using `BigRational` under the hood) so you can blend fractional inputs with `math` routines.
+* `fractions.decimal_to_fraction(x, max_den)` uses continued fractions to clamp floating-point inputs back to rationals whose denominators respect the provided bound. This captures common “convert the decimal to a fraction” classroom trick and keeps the result numerically stable.
+
+### Farey, mediant, and Egyptian tricks
+
+* `fractions.fraction_mediant(a, b)` computes `(a_n + b_n)/(a_d + b_d)`, the mediant that appears in both Farey sequences and Stern–Brocot trees. Feed it two tuples and you immediately get the intermediate convergent.
+* `fractions.fraction_farey_neighbors(a, b)` validates the Farey adjacency test `|a_n·b_d − b_n·a_d| = 1`. Combined with `fraction_mediant` you can explore entire Farey levels inside ApexLang.
+* `fractions.fraction_egyptian_terms(f)` emits the greedy Egyptian decomposition of a proper positive fraction as a tuple of denominators. Each entry corresponds to a unit fraction `1/k` that sums back to the original rational value.
+
+### Sample workflow
+
+```apex
+import fractions;
+import fractions.decimal_to_fraction as to_fraction;
+import nats.btoi;
+
+fn apex() {
+  let ratio = fractions.fraction_add(1, 3, 1, 6);
+  let period = fractions.fraction_period_length(ratio);
+  let terminates = btoi(fractions.fraction_is_terminating(ratio));
+  let mediant = fractions.fraction_mediant(ratio, to_fraction(0.8125, 256));
+  let neighbors = btoi(fractions.fraction_farey_neighbors(ratio, mediant));
+  let egyptian = fractions.fraction_egyptian_terms(ratio);
+  return period + terminates + neighbors + fractions.fraction_to_decimal(mediant) + fractions.fraction_to_decimal(egyptian);
+}
+```
+
+Every helper accepts either `(numerator, denominator)` pairs or tuples produced by earlier calls, so your ApexLang programs can jump between raw integer arithmetic, theorem predicates, and fraction analytics without ceremony.

@@ -223,6 +223,7 @@ fn apex() {
 - **Documentation**: [`docs/NATS_THEOREM_BOOK.md`](docs/NATS_THEOREM_BOOK.md) narrates every theorem helper with historical context, derivations, and runnable ApexLang samples so the growing `nats` catalogue reads like a miniature number-theory handbook.
 - **Totient-focused Proofs**: `euler_totient_theorem` and `phi` expose Euler's theorem under `BigInt`, enabling ApexLang routines to verify that `a^{φ(n)} ≡ 1 (mod n)` whenever `gcd(a, n) = 1`.
 - **Floating-Point Companion (`math`)**: Zero-arg constants `pi()`/`e()`, a numerically stable `abs` helper, and transcendental helpers (`sqrt`, `cbrt`, `hypot`, `pow`, `exp`, `ln`, `log`, `sin`, `cos`, `tan`) live beside the `nats` toolkit so ApexLang code can fluidly combine BigInt-heavy reasoning with analytic workloads.
+- **Ordinary & Decimal Fractions (`fractions`)**: Fraction arithmetic (`fraction_reduce`, `fraction_add/subtract/multiply/divide`), mediant/Farey helpers, terminating/repeating diagnostics (`fraction_is_terminating`, `fraction_period_length`), greedy Egyptian decompositions, decimal bridges (`fraction_to_decimal`, `decimal_to_fraction`), and tuple extractors (`fraction_numerator`, `fraction_denominator`) round out the number-theory toolbox with coverage for rational tricks.
 
 ## 29. Primality Testing Suite
 - Deterministic primality (`is_prime`), Fermat and strong pseudoprime classifiers, configurable Miller–Rabin rounds, and Carmichael number detection—all backed by dedicated BigInt regression tests in the `nats` module.
@@ -233,6 +234,8 @@ import math;
 import nats;
 import nats.btoi;
 import nats.is_prime as prime;
+import fractions;
+import fractions.decimal_to_fraction as to_fraction;
 
 fn weighted_score(value) {
   var score = nats.gcd(value, 192);
@@ -298,7 +301,21 @@ fn apex() {
   let lucky_value = nats.lucky_number(10);
   let lucky_flag = btoi(nats.is_lucky_number(21));
   let bell = nats.bell_number(5);
-  return enriched + bonus + energy + smooth + divisor_score + twin + sophie + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + goldbach_pair + goldbach_ok + ramanujan / 2 + taxicab + mersenne_prime + mersenne / 127 + kaprekar_constant / 6174 + bertrand_witness / 53 + bertrand_ok + euler + gauss / 55 + gauss_ok + triangular / 55 + figurate / 63 + catalan / 42 + catalan_ok + nicomachus + happy + automorphic + pal + triple + pell / 1000 + pell_lucas / 1000 + pell_id + pell_solution + sylvester / 2000 + sylvester_ok + ruth_aaron + highly + perfect_totient + sphenic + semiperfect + weird + refactorable + pernicious + smith + collatz / 50 + collatz_peak / 100 + lucky_value / 25 + lucky_flag + bell / 100;
+  let classroom_ratio = fractions.fraction_add(1, 3, 1, 6);
+  let ratio_decimal = fractions.fraction_to_decimal(classroom_ratio);
+  let ratio_num = fractions.fraction_numerator(classroom_ratio);
+  let ratio_den = fractions.fraction_denominator(classroom_ratio);
+  let ratio_proper = btoi(fractions.fraction_is_proper(classroom_ratio));
+  let ratio_terminating = btoi(fractions.fraction_is_terminating(classroom_ratio));
+  let ratio_period = fractions.fraction_period_length(classroom_ratio);
+  let benchmark = to_fraction(0.8125, 256);
+  let benchmark_decimal = fractions.fraction_to_decimal(benchmark);
+  let mediant = fractions.fraction_mediant(classroom_ratio, benchmark);
+  let mediant_decimal = fractions.fraction_to_decimal(mediant);
+  let mediant_neighbors = btoi(fractions.fraction_farey_neighbors(classroom_ratio, benchmark));
+  let reciprocal = fractions.fraction_reciprocal(benchmark);
+  let reciprocal_decimal = fractions.fraction_to_decimal(reciprocal);
+  return enriched + bonus + energy + smooth + divisor_score + twin + sophie + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + goldbach_pair + goldbach_ok + ramanujan / 2 + taxicab + mersenne_prime + mersenne / 127 + kaprekar_constant / 6174 + bertrand_witness / 53 + bertrand_ok + euler + gauss / 55 + gauss_ok + triangular / 55 + figurate / 63 + catalan / 42 + catalan_ok + nicomachus + happy + automorphic + pal + triple + pell / 1000 + pell_lucas / 1000 + pell_id + pell_solution + sylvester / 2000 + sylvester_ok + ruth_aaron + highly + perfect_totient + sphenic + semiperfect + weird + refactorable + pernicious + smith + collatz / 50 + collatz_peak / 100 + lucky_value / 25 + lucky_flag + bell / 100 + ratio_decimal + ratio_num + ratio_den + ratio_proper + ratio_terminating + ratio_period / 10.0 + benchmark_decimal + mediant_decimal + mediant_neighbors + reciprocal_decimal;
 }
 ```
 

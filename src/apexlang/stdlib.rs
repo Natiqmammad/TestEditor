@@ -35,6 +35,7 @@ impl NativeRegistry {
         let mut registry = Self::default();
         nats::register(&mut registry);
         math::register(&mut registry);
+        fractions::register(&mut registry);
         registry
     }
 
@@ -55,5 +56,6 @@ impl NativeRegistry {
     }
 }
 
+mod fractions;
 mod math;
 mod nats;

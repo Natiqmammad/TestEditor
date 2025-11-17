@@ -105,6 +105,7 @@ pub enum Value {
     Int(BigInt),
     Number(f64),
     Bool(bool),
+    Tuple(Vec<Value>),
 }
 
 impl Value {
@@ -125,6 +126,9 @@ impl Value {
                     0.0
                 }
             }
+            Value::Tuple(_) => {
+                panic!("Tuple values cannot be coerced into floating-point numbers")
+            }
         }
     }
 
@@ -133,6 +137,7 @@ impl Value {
             Value::Bool(b) => *b,
             Value::Int(v) => !v.is_zero(),
             Value::Number(v) => *v != 0.0,
+            Value::Tuple(values) => !values.is_empty(),
         }
     }
 }
@@ -143,6 +148,16 @@ impl std::fmt::Display for Value {
             Value::Int(v) => write!(f, "{}", v),
             Value::Number(v) => write!(f, "{}", v),
             Value::Bool(v) => write!(f, "{}", v),
+            Value::Tuple(values) => {
+                write!(f, "(")?;
+                for (index, value) in values.iter().enumerate() {
+                    if index > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", value)?;
+                }
+                write!(f, ")")
+            }
         }
     }
 }

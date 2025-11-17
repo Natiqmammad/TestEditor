@@ -331,11 +331,13 @@ impl<'a> Interpreter<'a> {
             UnaryOp::Plus => match value {
                 Value::Int(_) | Value::Number(_) => Ok(value),
                 Value::Bool(_) => Err(ApexError::new("Unary '+' expects a numeric operand")),
+                Value::Tuple(_) => Err(ApexError::new("Unary '+' does not accept tuple values")),
             },
             UnaryOp::Minus => match value {
                 Value::Int(v) => Ok(Value::Int(-v)),
                 Value::Number(v) => Ok(Value::Number(-v)),
                 Value::Bool(_) => Err(ApexError::new("Unary '-' expects a numeric operand")),
+                Value::Tuple(_) => Err(ApexError::new("Unary '-' does not accept tuple values")),
             },
             UnaryOp::Not => {
                 let b = self.expect_bool(value, "operand of '!'")?;
@@ -402,6 +404,9 @@ impl<'a> Interpreter<'a> {
             (Value::Number(l), Value::Int(r)) => {
                 self.numeric_binary(op, Value::Number(l), Value::Number(r.to_f64()))
             }
+            (Value::Tuple(_), _) | (_, Value::Tuple(_)) => Err(ApexError::new(
+                "Numeric operations do not accept tuple values",
+            )),
             (Value::Bool(_), _) | (_, Value::Bool(_)) => Err(ApexError::new(
                 "Numeric operations require numeric operands",
             )),
@@ -414,18 +419,7 @@ impl<'a> Interpreter<'a> {
         left: Value,
         right: Value,
     ) -> Result<Value, ApexError> {
-        let result = match (left, right) {
-            (Value::Bool(l), Value::Bool(r)) => l == r,
-            (Value::Int(l), Value::Int(r)) => l == r,
-            (Value::Number(l), Value::Number(r)) => (l - r).abs() <= f64::EPSILON,
-            (Value::Int(l), Value::Number(r)) => (l.to_f64() - r).abs() <= f64::EPSILON,
-            (Value::Number(l), Value::Int(r)) => (l - r.to_f64()).abs() <= f64::EPSILON,
-            _ => {
-                return Err(ApexError::new(
-                    "Equality comparison requires compatible operands",
-                ))
-            }
-        };
+        let result = self.values_equal(&left, &right)?;
         Ok(Value::Bool(match op {
             BinaryOp::Eq => result,
             BinaryOp::Ne => !result,
@@ -439,11 +433,11 @@ impl<'a> Interpreter<'a> {
         left: Value,
         right: Value,
     ) -> Result<Value, ApexError> {
-        let value = match (left, right) {
-            (Value::Int(l), Value::Int(r)) => compare_bigints(op, &l, &r),
-            (Value::Number(l), Value::Number(r)) => compare_f64(op, l, r)?,
-            (Value::Int(l), Value::Number(r)) => compare_f64(op, l.to_f64(), r)?,
-            (Value::Number(l), Value::Int(r)) => compare_f64(op, l, r.to_f64())?,
+        let value = match (&left, &right) {
+            (Value::Int(l), Value::Int(r)) => compare_bigints(op, l, r),
+            (Value::Number(l), Value::Number(r)) => compare_f64(op, *l, *r)?,
+            (Value::Int(l), Value::Number(r)) => compare_f64(op, l.clone().to_f64(), *r)?,
+            (Value::Number(l), Value::Int(r)) => compare_f64(op, *l, r.clone().to_f64())?,
             _ => {
                 return Err(ApexError::new("Comparison requires numeric operands"));
             }
@@ -458,6 +452,30 @@ impl<'a> Interpreter<'a> {
                 "{} expects a boolean value",
                 context
             ))),
+        }
+    }
+
+    fn values_equal(&self, left: &Value, right: &Value) -> Result<bool, ApexError> {
+        match (left, right) {
+            (Value::Bool(l), Value::Bool(r)) => Ok(l == r),
+            (Value::Int(l), Value::Int(r)) => Ok(l == r),
+            (Value::Number(l), Value::Number(r)) => Ok((l - r).abs() <= f64::EPSILON),
+            (Value::Int(l), Value::Number(r)) => Ok((l.clone().to_f64() - r).abs() <= f64::EPSILON),
+            (Value::Number(l), Value::Int(r)) => Ok((l - r.clone().to_f64()).abs() <= f64::EPSILON),
+            (Value::Tuple(left_values), Value::Tuple(right_values)) => {
+                if left_values.len() != right_values.len() {
+                    return Ok(false);
+                }
+                for (left, right) in left_values.iter().zip(right_values.iter()) {
+                    if !self.values_equal(left, right)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            _ => Err(ApexError::new(
+                "Equality comparison requires compatible operands",
+            )),
         }
     }
 }
