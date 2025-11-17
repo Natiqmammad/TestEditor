@@ -15,6 +15,7 @@ dependencies = [
  "num-integer",
  "num-rational",
  "num-traits",
+ "once_cell",
  "rust_decimal",
  "serde",
  "serde_json",

@@ -36,6 +36,14 @@ impl NativeRegistry {
         nats::register(&mut registry);
         math::register(&mut registry);
         fractions::register(&mut registry);
+        memory::register(&mut registry);
+        assembly::register(&mut registry);
+        concurrency::register(&mut registry);
+        filesystem::register(&mut registry);
+        os::register(&mut registry);
+        network::register(&mut registry);
+        process::register(&mut registry);
+        signal::register(&mut registry);
         registry
     }
 
@@ -56,6 +64,15 @@ impl NativeRegistry {
     }
 }
 
+mod assembly;
+mod concurrency;
+mod filesystem;
 mod fractions;
 mod math;
+mod memory;
 mod nats;
+mod network;
+mod os;
+mod process;
+mod signal;
+mod support;

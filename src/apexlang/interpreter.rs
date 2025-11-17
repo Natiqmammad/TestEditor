@@ -331,12 +331,14 @@ impl<'a> Interpreter<'a> {
             UnaryOp::Plus => match value {
                 Value::Int(_) | Value::Number(_) => Ok(value),
                 Value::Bool(_) => Err(ApexError::new("Unary '+' expects a numeric operand")),
+                Value::String(_) => Err(ApexError::new("Unary '+' does not accept string values")),
                 Value::Tuple(_) => Err(ApexError::new("Unary '+' does not accept tuple values")),
             },
             UnaryOp::Minus => match value {
                 Value::Int(v) => Ok(Value::Int(-v)),
                 Value::Number(v) => Ok(Value::Number(-v)),
                 Value::Bool(_) => Err(ApexError::new("Unary '-' expects a numeric operand")),
+                Value::String(_) => Err(ApexError::new("Unary '-' does not accept string values")),
                 Value::Tuple(_) => Err(ApexError::new("Unary '-' does not accept tuple values")),
             },
             UnaryOp::Not => {
@@ -349,7 +351,14 @@ impl<'a> Interpreter<'a> {
     fn apply_binary(&self, op: &BinaryOp, left: Value, right: Value) -> Result<Value, ApexError> {
         use BinaryOp::*;
         match op {
-            Add | Sub | Mul | Div | Mod => self.numeric_binary(op, left, right),
+            Add => match (left, right) {
+                (Value::String(mut l), Value::String(r)) => {
+                    l.push_str(&r);
+                    Ok(Value::String(l))
+                }
+                (l, r) => self.numeric_binary(op, l, r),
+            },
+            Sub | Mul | Div | Mod => self.numeric_binary(op, left, right),
             Eq | Ne => self.equality_binary(op, left, right),
             Lt | Le | Gt | Ge => self.comparison_binary(op, left, right),
             And | Or => unreachable!("handled earlier"),
@@ -404,6 +413,9 @@ impl<'a> Interpreter<'a> {
             (Value::Number(l), Value::Int(r)) => {
                 self.numeric_binary(op, Value::Number(l), Value::Number(r.to_f64()))
             }
+            (Value::String(_), _) | (_, Value::String(_)) => Err(ApexError::new(
+                "Numeric operations do not accept string values",
+            )),
             (Value::Tuple(_), _) | (_, Value::Tuple(_)) => Err(ApexError::new(
                 "Numeric operations do not accept tuple values",
             )),
@@ -438,8 +450,11 @@ impl<'a> Interpreter<'a> {
             (Value::Number(l), Value::Number(r)) => compare_f64(op, *l, *r)?,
             (Value::Int(l), Value::Number(r)) => compare_f64(op, l.clone().to_f64(), *r)?,
             (Value::Number(l), Value::Int(r)) => compare_f64(op, *l, r.clone().to_f64())?,
+            (Value::String(l), Value::String(r)) => compare_strings(op, l, r)?,
             _ => {
-                return Err(ApexError::new("Comparison requires numeric operands"));
+                return Err(ApexError::new(
+                    "Comparison requires numeric or string operands",
+                ));
             }
         };
         Ok(Value::Bool(value))
@@ -473,6 +488,7 @@ impl<'a> Interpreter<'a> {
                 }
                 Ok(true)
             }
+            (Value::String(l), Value::String(r)) => Ok(l == r),
             _ => Err(ApexError::new(
                 "Equality comparison requires compatible operands",
             )),
@@ -521,6 +537,15 @@ fn compare_f64(op: &BinaryOp, left: f64, right: f64) -> Result<bool, ApexError> 
         }),
         None => Err(ApexError::new("Comparison involving NaN is undefined")),
     }
+}
+
+fn compare_strings(op: &BinaryOp, left: &str, right: &str) -> Result<bool, ApexError> {
+    use std::cmp::Ordering;
+    Ok(match left.cmp(right) {
+        Ordering::Less => matches!(op, BinaryOp::Lt | BinaryOp::Le),
+        Ordering::Equal => matches!(op, BinaryOp::Le | BinaryOp::Ge),
+        Ordering::Greater => matches!(op, BinaryOp::Gt | BinaryOp::Ge),
+    })
 }
 
 #[cfg(test)]

@@ -288,12 +288,16 @@ impl Parser {
     }
 
     fn parse_primary(&mut self) -> Result<Expr, ApexError> {
-        if let Some(token) =
-            self.advance_if(|t| matches!(t.kind, TokenKind::Number(_) | TokenKind::Integer(_)))
-        {
+        if let Some(token) = self.advance_if(|t| {
+            matches!(
+                t.kind,
+                TokenKind::Number(_) | TokenKind::Integer(_) | TokenKind::StringLiteral(_)
+            )
+        }) {
             return Ok(match token.kind {
                 TokenKind::Number(value) => Expr::Literal(Value::Number(value)),
                 TokenKind::Integer(value) => Expr::Literal(Value::Int(value)),
+                TokenKind::StringLiteral(value) => Expr::Literal(Value::String(value)),
                 _ => unreachable!(),
             });
         }
@@ -444,6 +448,7 @@ impl TokenExt for Token {
             TokenKind::Identifier(_) => "identifier".to_string(),
             TokenKind::Integer(_) => "integer".to_string(),
             TokenKind::Number(_) => "number".to_string(),
+            TokenKind::StringLiteral(_) => "string literal".to_string(),
             TokenKind::LParen => "'('".to_string(),
             TokenKind::RParen => "')'".to_string(),
             TokenKind::LBrace => "'{'".to_string(),

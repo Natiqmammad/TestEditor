@@ -10,11 +10,27 @@ In addition to AFNS, the repository now tracks the design of **APEXLANG**, a low
 
 The repository ships with a tiny prototype interpreter that understands the MVP syntax described in the design document. The interpreter now supports BigInt-backed integers, floating-point numbers, booleans, local bindings via `let`/`var`, user-defined helper functions, and a lightweight import system. By importing the built-in `nats` module you can call a rich catalogue of number-theory routines (`gcd`, `sum_digits`, `phi`, `divisors_count`, `modpow`, `is_prime`, …) directly from ApexLang source. Advanced primality helpers—including Fermat and strong pseudoprime predicates, a configurable Miller–Rabin driver, a Carmichael classifier, Wilson-theorem verification, Kaprekar classifications (constant/steps + theorem validation), twin-prime/Sophie Germain/Cunningham detectors, Goldbach-witness utilities, Lucas–Lehmer/Mersenne probes, Euler-totient-theorem and Gauss-sum validators, and Bertrand-postulate witnesses—round out the toolkit for building mathematically intensive programs. Figurate and sequence helpers (`triangular_number`, `pentagonal_number`, `hexagonal_number`, `catalan_number`, `catalan_theorem`, `nicomachus_theorem`, `pell_number`, `pell_lucas_number`, `sylvester_number`, `is_happy`, `happy_steps`, `is_automorphic`, `is_palindromic`, and `pythagorean_triple`) ensure the natural-number playground stays expressive, while theorem validators (`pell_theorem`, `pell_equation`, `sylvester_identity`, and `is_ruth_aaron_pair`) bring classical identities directly into source code. Hardy–Ramanujan taxicab detectors (`ramanujan_pairs`, `is_taxicab_number`), highly composite/perfect totient classifiers, Collatz trackers (`collatz_steps`, `collatz_peak`), lucky-number sieves (`lucky_number`, `is_lucky_number`), Bell-number generators (`bell_number`), and `is_sphenic` expand the arithmetic search space, and the module also exposes natural-number ergonomics such as `abs_value`, localized prime/composite aliases, and Kaprekar theorem checks for 4-digit flows.
 
-The latest refresh also adds semiperfect/weird testers, refactorable predicates, pernicious-bit inspectors, and Smith-number verifiers so digit-centric theorems sit next to divisor lore.
+The latest refresh also adds semiperfect/weird testers, refactorable predicates, pernicious-bit inspectors, and Smith-number verifiers so digit-centric theorems sit next to divisor lore. Strings are now first-class literals (`"paths/with/escapes"`), so ApexLang programs can pass file names, inline-assembly snippets, and shell commands directly into native helpers without synthetic encodings. To keep the language’s low-level ambitions tangible, the runtime now exposes byte buffers with pointer arithmetic (`memset`, `memcpy`, tuple indexing), smart-pointer tables, advanced bit fiddling (rotations, bit counts, set/clear/toggle/test), inline assembly, concurrency mailboxes, and a grab bag of host-facing libraries for files, OS data, networking, processes, and synthetic signals.
 
 For floating-point heavy workloads, the companion `math` module exposes zero-argument constants (`pi()`, `e()`), a numerically stable `abs` helper, and a sweep of analytic primitives: `sqrt`, `cbrt`, `hypot`, `pow`, `exp`, `ln`, `log`, `sin`, `cos`, and `tan`. The interpreter automatically widens integers to doubles so programs can blend `math` and `nats` calls in the same expressions without ceremony.
 
 To keep ordinary and decimal fractions first-class citizens, the `fractions` module layers reduction/add/subtract/multiply/divide helpers on top of numerators and denominators, offers Farey-neighbor and mediant identities, detects terminating versus repeating decimals (`fraction_is_terminating`, `fraction_period_length`), emits greedy Egyptian decompositions, and bridges decimals back to rationals (`decimal_to_fraction`) under a tunable denominator bound. Every helper accepts either raw `(numerator, denominator)` pairs or the tuple returned by a previous fraction call, so ApexLang code can chain fraction algebra the same way it chains natural-number predicates.
+
+#### Systems programming toolbox
+
+Beyond math, the standard library now includes a focused systems toolkit—documented in depth in [`docs/SYSTEMS_PRIMER.md`](docs/SYSTEMS_PRIMER.md)—that demonstrates how ApexLang can script low-level workflows:
+
+| Module | Highlights |
+| --- | --- |
+| `memory` | Byte buffers (`alloc_bytes`, `memset`, `memcpy`), pointer arithmetic (`pointer_offset`, tuple-based handles), smart pointers (`smart_pointer_new/get/set`), bitwise intrinsics (`binary_shift`, `binary_rotate`, `bit_test/set/clear/toggle`, `bit_count`), and `tuple_get` for inspecting tuple results. |
+| `asm` | `asm.inline("mov r0, 5; add r0, 7;")` executes a miniature register-based DSL and returns register tuples for further processing. |
+| `concurrency` | Spawn background workers (`concurrency.spawn("sum", 10_000)`), inspect `pending` jobs, `yield_now`, and pass values through thread-safe mailboxes (`mailbox_create/send/recv/try_recv`). |
+| `filesystem` & `os` | Text/binary IO (`read_text`, `write_bytes`), existence checks, directory listings/deletes, and host/environment queries (`os.cwd`, `os.env_var`, `os.pointer_width`, `os.pid`, `os.args`). |
+| `process` | Launch binaries with arbitrary string arguments, retrieve `(exit_code, stdout, stderr)` tuples, and resolve executables via `process.which`. |
+| `network` | Resolve hostnames, validate IPv4 literals, emit CIDR subnet masks, and flag private/reserved IPv4 ranges. |
+| `signal` | Register and emit synthetic signals with `signal.register`, `signal.emit`, `signal.count`, `signal.tracked`, plus `signal.reset` for clearing counters mid-run. |
+
+The primer walks through combined examples showing how to mix the systems modules with the number-theory and math helpers.
 
 All native math intrinsics are covered by dedicated unit tests that validate modular arithmetic, Möbius/Legendre symbols, aliquot dynamics, and perfect-power detection against BigInt references—helping ensure the language delivers trustworthy results for demanding numerical workloads.
 
@@ -80,6 +96,14 @@ import nats.btoi;
 import nats.is_prime as prime;
 import fractions;
 import fractions.decimal_to_fraction as to_fraction;
+import asm;
+import memory;
+import concurrency;
+import filesystem;
+import os;
+import network;
+import process;
+import signal;
 
 fn weighted_score(value) {
     var score = nats.gcd(value, 192);
@@ -93,73 +117,9 @@ fn apex() {
     let signed = -270;
     let base = nats.abs_value(signed);
     let enriched = weighted_score(base);
-    let divisor_score = nats.divisors_count(base);
-    let twin = btoi(nats.is_twin_prime(29));
-    let sophie = btoi(nats.is_sophie_germain_prime(23));
-    let kaprekar = btoi(nats.is_kaprekar(45));
-    let wilson = btoi(nats.wilson_theorem(13));
-    let fermat = btoi(nats.fermat_little(5, 97));
-    let kaprekar_proof = btoi(nats.kaprekar_theorem(3524));
-    let kaprekar_steps = nats.kaprekar_6174_steps(3524);
-    let kaprekar_constant = nats.kaprekar_constant();
-    let bonus = btoi(prime(97));
-    let energy = math.hypot(3, 4);
-    let smooth = math.abs(-3.5);
-    let goldbach_pair = nats.goldbach_witness(84);
-    let goldbach_ok = btoi(nats.goldbach_holds(84));
-    let ramanujan = nats.ramanujan_pairs(1729);
-    let taxicab = btoi(nats.is_taxicab_number(1729));
-    let mersenne = nats.mersenne_number(7);
-    let mersenne_prime = btoi(nats.is_mersenne_prime(7));
-    let bertrand_witness = nats.bertrand_prime(50);
-    let bertrand_ok = btoi(nats.bertrand_postulate(50));
-    let euler = btoi(nats.euler_totient_theorem(7, 40));
-    let gauss = nats.gauss_sum(25);
-    let gauss_ok = btoi(nats.gauss_sum_identity(25));
-    let triangular = nats.triangular_number(divisor_score);
-    let figurate = nats.pentagonal_number(5) + nats.hexagonal_number(4);
-    let catalan = nats.catalan_number(5);
-    let catalan_ok = btoi(nats.catalan_theorem(5));
-    let nicomachus = btoi(nats.nicomachus_theorem(25));
-    let happy = nats.happy_steps(19);
-    let automorphic = btoi(nats.is_automorphic(76));
-    let pal = btoi(nats.is_palindromic(12321));
-    let triple = btoi(nats.pythagorean_triple(3, 4, 5));
-    let pell = nats.pell_number(10);
-    let pell_lucas = nats.pell_lucas_number(10);
-    let pell_id = btoi(nats.pell_theorem(10));
-    let pell_solution = btoi(nats.pell_equation(577, 408));
-    let sylvester = nats.sylvester_number(4);
-    let sylvester_ok = btoi(nats.sylvester_identity(4));
-  let ruth_aaron = btoi(nats.is_ruth_aaron_pair(714, 715));
-  let highly = btoi(nats.is_highly_composite(12));
-  let perfect_totient = btoi(nats.is_perfect_totient(9));
-  let sphenic = btoi(nats.is_sphenic(30));
-  let semiperfect = btoi(nats.is_semiperfect(20));
-  let weird = btoi(nats.is_weird(70));
-  let refactorable = btoi(nats.is_refactorable(24));
-  let pernicious = btoi(nats.is_pernicious(17));
-  let smith = btoi(nats.is_smith_number(666));
-  let collatz = nats.collatz_steps(27);
-  let collatz_peak = nats.collatz_peak(27);
-    let lucky_value = nats.lucky_number(10);
-    let lucky_flag = btoi(nats.is_lucky_number(21));
-    let bell = nats.bell_number(5);
-    let classroom_ratio = fractions.fraction_add(1, 3, 1, 6);
-    let ratio_decimal = fractions.fraction_to_decimal(classroom_ratio);
-    let ratio_num = fractions.fraction_numerator(classroom_ratio);
-    let ratio_den = fractions.fraction_denominator(classroom_ratio);
-    let ratio_proper = btoi(fractions.fraction_is_proper(classroom_ratio));
-    let ratio_terminating = btoi(fractions.fraction_is_terminating(classroom_ratio));
-    let ratio_period = fractions.fraction_period_length(classroom_ratio);
-    let benchmark = to_fraction(0.8125, 256);
-    let benchmark_decimal = fractions.fraction_to_decimal(benchmark);
-    let mediant = fractions.fraction_mediant(classroom_ratio, benchmark);
-    let mediant_decimal = fractions.fraction_to_decimal(mediant);
-    let mediant_neighbors = btoi(fractions.fraction_farey_neighbors(classroom_ratio, benchmark));
-    let reciprocal = fractions.fraction_reciprocal(benchmark);
-    let reciprocal_decimal = fractions.fraction_to_decimal(reciprocal);
-    return enriched + bonus + energy + smooth + divisor_score + twin + sophie + kaprekar + wilson + fermat + kaprekar_proof + kaprekar_steps + goldbach_pair + goldbach_ok + ramanujan / 2 + taxicab + mersenne_prime + mersenne / 127 + kaprekar_constant / 6174 + bertrand_witness / 53 + bertrand_ok + euler + gauss / 55 + gauss_ok + triangular / 55 + figurate / 63 + catalan / 42 + catalan_ok + nicomachus + happy + automorphic + pal + triple + pell / 1000 + pell_lucas / 1000 + pell_id + pell_solution + sylvester / 2000 + sylvester_ok + ruth_aaron + highly + perfect_totient + sphenic + semiperfect + weird + refactorable + pernicious + smith + collatz / 50 + collatz_peak / 100 + lucky_value / 25 + lucky_flag + bell / 100 + ratio_decimal + ratio_num + ratio_den + ratio_proper + ratio_terminating + ratio_period / 10.0 + benchmark_decimal + mediant_decimal + mediant_neighbors + reciprocal_decimal;
+    // ...snip… see examples/apex/demo.apx for the full program that blends
+    // nats/math/fractions helpers with asm, memory, concurrency, filesystem,
+    // os, network, process, and signal utilities.
 }
 ```
 

@@ -22,6 +22,7 @@ pub enum TokenKind {
     Identifier(String),
     Integer(BigInt),
     Number(f64),
+    StringLiteral(String),
     LParen,
     RParen,
     LBrace,
@@ -143,6 +144,73 @@ pub fn lex(source: &str) -> Result<Vec<Token>, ApexError> {
                         column: start_col,
                     });
                 }
+            }
+            '"' => {
+                let start_col = column;
+                i += 1;
+                column += 1;
+                let mut value = String::new();
+                let mut terminated = false;
+                while i < chars.len() {
+                    let c = chars[i];
+                    match c {
+                        '"' => {
+                            terminated = true;
+                            i += 1;
+                            column += 1;
+                            break;
+                        }
+                        '\\' => {
+                            if i + 1 >= chars.len() {
+                                return Err(ApexError::new(format!(
+                                    "Unterminated string literal at line {}, column {}",
+                                    line, start_col
+                                )));
+                            }
+                            let escape = chars[i + 1];
+                            let translated = match escape {
+                                '"' => '"',
+                                '\\' => '\\',
+                                'n' => '\n',
+                                't' => '\t',
+                                'r' => '\r',
+                                '0' => '\0',
+                                other => {
+                                    return Err(ApexError::new(format!(
+                                        "Unsupported escape '\\{}' at line {}, column {}",
+                                        other, line, column
+                                    )));
+                                }
+                            };
+                            value.push(translated);
+                            i += 2;
+                            column += 2;
+                        }
+                        '\n' => {
+                            return Err(ApexError::new(format!(
+                                "Unterminated string literal at line {}, column {}",
+                                line, start_col
+                            )));
+                        }
+                        other => {
+                            value.push(other);
+                            i += 1;
+                            column += 1;
+                        }
+                    }
+                }
+                if !terminated {
+                    return Err(ApexError::new(format!(
+                        "Unterminated string literal at line {}, column {}",
+                        line, start_col
+                    )));
+                }
+                tokens.push(Token {
+                    kind: TokenKind::StringLiteral(value.clone()),
+                    lexeme: value,
+                    line,
+                    column: start_col,
+                });
             }
             '(' => {
                 tokens.push(simple_token(TokenKind::LParen, ch, line, column));

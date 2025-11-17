@@ -47,7 +47,7 @@ pub fn gemm(m: usize, n: usize, k: usize,
 ```
 
 ## 5. Type System
-- **Scalars**: `i{8,16,32,64,128}`, `u{8,16,32,64,128}`, `f16`, `f32`, `f64`, `bf16`, `bool`.
+- **Scalars**: `i{8,16,32,64,128}`, `u{8,16,32,64,128}`, `f16`, `f32`, `f64`, `bf16`, `bool`, and UTF-8 `string` literals for filesystem paths, inline assembly snippets, and CLI arguments.
 - **Vectors/Matrices**: `vec<T, N>`, `mat<T, R, C>` for static sizes, `slice<T>` for dynamic views.
 - **Pointers**: `*T`, `*mut T`, `*const T`, `addr<T, A>` with explicit alignment requirements.
 - **Casts**: `as` conversions allowed in safe contexts when provably valid, otherwise confined to `unsafe` blocks.
@@ -228,7 +228,18 @@ fn apex() {
 ## 29. Primality Testing Suite
 - Deterministic primality (`is_prime`), Fermat and strong pseudoprime classifiers, configurable Miller–Rabin rounds, and Carmichael number detection—all backed by dedicated BigInt regression tests in the `nats` module.
 
-## 30. Usage Examples
+## 30. Systems Modules and Tooling
+- **`memory`**: Byte-addressable buffers (`alloc_bytes`, `pointer_offset`, `read_byte`, `write_byte`, `memset`, `memcpy`), global smart pointers (`smart_pointer_new/get/set`), tuple accessors (`tuple_get`), and bitwise intrinsics (`binary_and/or/xor/not`, `binary_shift_left/right`, `binary_rotate_left/right`, `bit_test/set/clear/toggle`, `bit_count`). These helpers mirror the low-level layout controls described in §6 and make it easy to script buffer manipulations inside the interpreter.
+- **`asm`**: `asm.inline("mov r0, 5; add r0, 7;")` executes a miniature register-machine DSL (opcodes: `mov`, `add`, `sub`, `mul`, `and`, `or`, `xor`, `nop`) and returns the register tuple for downstream inspection. This provides an MVP-friendly stand-in for inline assembly blocks.
+- **`concurrency`**: `concurrency.spawn(kind, payload)` launches background jobs (`sum`, `factorial`, `prime_count`, `fibonacci`, `sleep_ms`) backed by real threads, while `concurrency.join`, `pending`, `yield_now`, and mailbox helpers (`mailbox_create/send/recv/try_recv`) expose the worker-pool status and enable message passing in ApexLang code.
+- **`filesystem`/`os`**: Text/binary IO (`read_text`, `write_text`, `append_text`, `read_bytes`, `write_bytes`), existence checks, directory listings and deletes, plus OS shims (`os.cwd`, `os.temp_dir`, `os.env_var`, `os.pointer_width`, `os.pid`, `os.args`) make it possible to stitch math-heavy routines into actual host workflows.
+- **`process`**: `process.run(cmd, args...)` shells out to the host and returns `(exit_code, stdout, stderr)` tuples that can be deconstructed via `memory.tuple_get`, while `process.which` resolves binaries via the active `PATH`.
+- **`network`**: Hostname resolution (`resolve_host`), IPv4 validation (`parse_ipv4`), CIDR mask generation (`subnet_mask`), and private/reserved IPv4 detection (`is_private_ipv4`).
+- **`signal`**: Synthetic signal registry (`register`, `emit`, `count`, `tracked`, `reset`) for modeling schedulers or debouncing logic without touching OS-level signals.
+
+See [`docs/SYSTEMS_PRIMER.md`](docs/SYSTEMS_PRIMER.md) for a full walkthrough with runnable ApexLang snippets that mix these modules with the numerical libraries.
+
+## 31. Usage Examples
 ```apex
 import math;
 import nats;
