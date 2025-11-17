@@ -398,6 +398,46 @@ fn apex() {
 ### `nats.miller_rabin_test(n, rounds)` & `nats.lucas_lehmer(p)`
 - **Statement**: Pair probabilistic and deterministic tests for large primes.
 
+### `nats.collatz_steps(n)`, `nats.collatz_peak(n)`
+- **Statement**: Measure the stopping time and maximum altitude of the Collatz trajectory beginning at positive `n`.
+- **Key idea**: Alternate between halving even values and applying `3n + 1` for odd ones; both helpers summarize the conjectured path to 1.
+- **Example**:
+```apex
+import nats;
+
+fn apex() {
+  let steps = nats.collatz_steps(27);
+  let peak = nats.collatz_peak(27);
+  return steps + peak / 100;
+}
+```
+
+### `nats.lucky_number(k)`, `nats.is_lucky_number(n)`
+- **Statement**: Generate the `k`th lucky number or determine whether `n` survives the Josephus-style lucky sieve.
+- **Key idea**: Start with the odd integers, then repeatedly remove every `m`th entry where `m` is the next survivor; the resulting sequence mimics prime-like spacing.
+- **Example**:
+```apex
+import nats;
+
+fn apex() {
+  let lucky10 = nats.lucky_number(10); // 33
+  let witness = nats.btoi(nats.is_lucky_number(21));
+  return lucky10 + witness;
+}
+```
+
+### `nats.bell_number(n)`
+- **Statement**: Compute the `n`th Bell number—the number of set partitions on `n` labeled elements.
+- **Key idea**: Bell triangles accumulate the partitions via `B_{n+1,0} = B_{n,n}` and `B_{n,k} = B_{n,k-1} + B_{n-1,k-1}` recurrences.
+- **Example**:
+```apex
+import nats;
+
+fn apex() {
+  return nats.bell_number(5); // 52
+}
+```
+
 ---
 
 Every function documented here is available inside the prototype interpreter. Mix and match them freely—combine `math` intrinsics with `nats` helpers to build experimental number-theory pipelines that execute directly inside ApexLang.

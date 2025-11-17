@@ -41,8 +41,11 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!(functions, "pell_lucas_number", pell_lucas_number);
     add!(functions, "pell_theorem", pell_theorem);
     add!(functions, "pell_equation", pell_equation);
+    add!(functions, "collatz_steps", collatz_steps);
+    add!(functions, "collatz_peak", collatz_peak);
     add!(functions, "sylvester_number", sylvester_number);
     add!(functions, "sylvester_identity", sylvester_identity);
+    add!(functions, "bell_number", bell_number);
     add!(functions, "divisors_count", divisors_count);
     add!(functions, "divisors_sum", divisors_sum);
     add!(functions, "proper_divisors_sum", proper_divisors_sum);
@@ -103,6 +106,8 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!(functions, "is_ruth_aaron_pair", is_ruth_aaron_pair);
     add!(functions, "is_square", is_square);
     add!(functions, "is_power", is_power);
+    add!(functions, "lucky_number", lucky_number);
+    add!(functions, "is_lucky_number", is_lucky_number);
     add!(functions, "is_automorphic", is_automorphic);
     add!(functions, "is_palindromic", is_palindromic);
     add!(functions, "pythagorean_triple", pythagorean_triple);
@@ -186,6 +191,15 @@ fn to_u128(value: &BigInt, name: &str) -> Result<u128, ApexError> {
     value.to_u128().ok_or_else(|| {
         ApexError::new(format!(
             "{} argument '{}' is too large to fit in u128",
+            name, value
+        ))
+    })
+}
+
+fn to_u64(value: &BigInt, name: &str) -> Result<u64, ApexError> {
+    value.to_u64().ok_or_else(|| {
+        ApexError::new(format!(
+            "{} argument '{}' is too large to fit in u64",
             name, value
         ))
     })
@@ -370,6 +384,20 @@ fn pell_equation(args: &[Value]) -> Result<Value, ApexError> {
     Ok(Value::Bool(lhs == BigInt::one() || lhs == BigInt::from(-1)))
 }
 
+fn collatz_steps(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "collatz_steps")?;
+    let start = expect_nat_arg(args, 0, "collatz_steps")?;
+    let (steps, _) = collatz_metrics(&start, "collatz_steps")?;
+    Ok(Value::Int(steps))
+}
+
+fn collatz_peak(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "collatz_peak")?;
+    let start = expect_nat_arg(args, 0, "collatz_peak")?;
+    let (_, peak) = collatz_metrics(&start, "collatz_peak")?;
+    Ok(Value::Int(peak))
+}
+
 fn sylvester_number(args: &[Value]) -> Result<Value, ApexError> {
     ensure_len(args, 1, "sylvester_number")?;
     let n = expect_nat_arg(args, 0, "sylvester_number")?;
@@ -382,6 +410,13 @@ fn sylvester_identity(args: &[Value]) -> Result<Value, ApexError> {
     let n = expect_nat_arg(args, 0, "sylvester_identity")?;
     let steps = to_usize(&n, "sylvester_identity")?;
     Ok(Value::Bool(verify_sylvester_identity(steps)))
+}
+
+fn bell_number(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "bell_number")?;
+    let n = expect_nat_arg(args, 0, "bell_number")?;
+    let index = to_usize(&n, "bell_number")?;
+    Ok(Value::Int(bell_value(index)))
 }
 
 fn sum_digits_impl(value: &BigInt, base: u32) -> BigInt {
@@ -1404,6 +1439,33 @@ fn is_power(args: &[Value]) -> Result<Value, ApexError> {
     Ok(Value::Bool(false))
 }
 
+fn lucky_number(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "lucky_number")?;
+    let n = expect_nat_arg(args, 0, "lucky_number")?;
+    let index = to_usize(&n, "lucky_number")?;
+    if index == 0 {
+        return Err(ApexError::new("lucky_number requires index >= 1"));
+    }
+    let numbers = lucky_sequence_for_count(index);
+    if numbers.len() < index {
+        return Err(ApexError::new(
+            "lucky_number could not generate enough lucky numbers",
+        ));
+    }
+    Ok(Value::Int(BigInt::from(numbers[index - 1])))
+}
+
+fn is_lucky_number(args: &[Value]) -> Result<Value, ApexError> {
+    ensure_len(args, 1, "is_lucky_number")?;
+    let n = expect_nat_arg(args, 0, "is_lucky_number")?;
+    if n.is_zero() {
+        return Ok(Value::Bool(false));
+    }
+    let value = to_u64(&n, "is_lucky_number")?;
+    let lucky = lucky_up_to(value);
+    Ok(Value::Bool(lucky.binary_search(&value).is_ok()))
+}
+
 fn is_automorphic(args: &[Value]) -> Result<Value, ApexError> {
     ensure_len(args, 1, "is_automorphic")?;
     let n = expect_nat_arg(args, 0, "is_automorphic")?;
@@ -1857,6 +1919,90 @@ fn lcm_bigints(a: BigInt, b: BigInt) -> BigInt {
     }
 }
 
+fn collatz_metrics(start: &BigInt, name: &str) -> Result<(BigInt, BigInt), ApexError> {
+    if start.is_zero() {
+        return Err(ApexError::new(format!(
+            "{} requires positive integer inputs",
+            name
+        )));
+    }
+    let one = BigInt::one();
+    let two = BigInt::from(2u8);
+    let three = BigInt::from(3u8);
+    let mut n = start.clone();
+    let mut steps = big_zero();
+    let mut peak = n.clone();
+    while n > one {
+        if n.is_even() {
+            n /= &two;
+        } else {
+            n = &three * &n + &one;
+        }
+        if n > peak {
+            peak = n.clone();
+        }
+        steps += &one;
+    }
+    Ok((steps, peak))
+}
+
+fn lucky_up_to(limit: u64) -> Vec<u64> {
+    if limit < 1 {
+        return Vec::new();
+    }
+    let mut numbers: Vec<u64> = (1..=limit).filter(|value| value % 2 == 1).collect();
+    let mut idx = 1usize;
+    while idx < numbers.len() {
+        let step = numbers[idx] as usize;
+        if step <= 1 || step > numbers.len() {
+            break;
+        }
+        let mut filtered = Vec::with_capacity(numbers.len());
+        for (pos, value) in numbers.iter().enumerate() {
+            if (pos + 1) % step != 0 {
+                filtered.push(*value);
+            }
+        }
+        numbers = filtered;
+        idx += 1;
+    }
+    numbers
+}
+
+fn lucky_sequence_for_count(count: usize) -> Vec<u64> {
+    if count == 0 {
+        return Vec::new();
+    }
+    let mut limit = (count as u64).saturating_mul(10).max(5);
+    loop {
+        let numbers = lucky_up_to(limit);
+        if numbers.len() >= count {
+            return numbers;
+        }
+        if limit > u64::MAX / 2 {
+            return numbers;
+        }
+        limit = limit.saturating_mul(2);
+    }
+}
+
+fn bell_value(n: usize) -> BigInt {
+    if n == 0 {
+        return BigInt::one();
+    }
+    let mut triangle: Vec<Vec<BigInt>> = vec![vec![big_zero(); n + 1]; n + 1];
+    triangle[0][0] = BigInt::one();
+    for i in 1..=n {
+        triangle[i][0] = triangle[i - 1][i - 1].clone();
+        for j in 1..=i {
+            let left = triangle[i][j - 1].clone();
+            let diag = triangle[i - 1][j - 1].clone();
+            triangle[i][j] = left + diag;
+        }
+    }
+    triangle[n][0].clone()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2248,5 +2394,29 @@ mod tests {
 
         let not_sphenic = is_sphenic(&[uint(60)]).unwrap();
         assert_eq!(not_sphenic, bool_value(false));
+    }
+
+    #[test]
+    fn collatz_lucky_and_bell_helpers() {
+        let steps = collatz_steps(&[uint(13)]).unwrap();
+        assert_eq!(steps, uint(9));
+
+        let peak = collatz_peak(&[uint(13)]).unwrap();
+        assert_eq!(peak, uint(40));
+
+        let lucky_value = lucky_number(&[uint(6)]).unwrap();
+        assert_eq!(lucky_value, uint(15));
+
+        let lucky_check = is_lucky_number(&[uint(21)]).unwrap();
+        assert_eq!(lucky_check, bool_value(true));
+
+        let unlucky_check = is_lucky_number(&[uint(22)]).unwrap();
+        assert_eq!(unlucky_check, bool_value(false));
+
+        let bell = bell_number(&[uint(5)]).unwrap();
+        assert_eq!(bell, uint(52));
+
+        let zero_collatz = collatz_steps(&[uint(0)]);
+        assert!(zero_collatz.is_err());
     }
 }
