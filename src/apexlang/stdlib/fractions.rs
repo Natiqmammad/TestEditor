@@ -45,9 +45,17 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!("fraction_to_mixed", fraction_to_mixed);
     add!("fraction_from_mixed", fraction_from_mixed);
     add!("fraction_decimal_parts", fraction_decimal_parts);
+    add!("fraction_decimal_cycle", fraction_decimal_cycle);
     add!("fraction_continued_terms", fraction_continued_terms);
     add!("fraction_from_continued", fraction_from_continued);
     add!("fraction_limit_denominator", fraction_limit_denominator);
+    add!("fraction_convergents", fraction_convergents);
+    add!("fraction_full_reptend", fraction_full_reptend);
+    add!("fraction_to_percent", fraction_to_percent);
+    add!(
+        "fraction_from_decimal_pattern",
+        fraction_from_decimal_pattern
+    );
 
     registry.register_module("fractions", functions);
 }
@@ -78,6 +86,13 @@ fn expect_positive_limit(value: &Value, name: &str) -> Result<BigInt, ApexError>
     Ok(int_value)
 }
 
+fn expect_string(value: &Value, name: &str) -> Result<String, ApexError> {
+    match value {
+        Value::String(text) => Ok(text.clone()),
+        _ => Err(ApexError::new(format!("{} expects a string", name))),
+    }
+}
+
 fn normalize_fraction(
     numerator: BigInt,
     denominator: BigInt,
@@ -101,6 +116,17 @@ fn normalize_fraction(
 
 fn tuple_from_fraction(num: BigInt, den: BigInt) -> Value {
     Value::Tuple(vec![Value::Int(num), Value::Int(den)])
+}
+
+fn parse_digit_string(text: &str, name: &str) -> Result<BigInt, ApexError> {
+    if text.is_empty() {
+        return Ok(BigInt::zero());
+    }
+    if !text.chars().all(|ch| ch.is_ascii_digit()) {
+        return Err(ApexError::new(format!("{} must contain only digits", name)));
+    }
+    BigInt::parse_bytes(text.as_bytes(), 10)
+        .ok_or_else(|| ApexError::new(format!("{} could not be parsed", name)))
 }
 
 fn fraction_from_args(args: &[Value], offset: usize) -> Result<(BigInt, BigInt), ApexError> {
@@ -339,7 +365,12 @@ fn fraction_is_terminating(args: &[Value]) -> Result<Value, ApexError> {
 }
 
 fn fraction_period_length(args: &[Value]) -> Result<Value, ApexError> {
-    let (_, mut den) = parse_single_fraction(args)?;
+    let (_, den) = parse_single_fraction(args)?;
+    let period = decimal_period_for_denominator(den)?;
+    Ok(Value::Int(period))
+}
+
+fn decimal_period_for_denominator(mut den: BigInt) -> Result<BigInt, ApexError> {
     den = den.abs();
     while (&den % 2) == BigInt::zero() {
         den /= 2;
@@ -348,7 +379,7 @@ fn fraction_period_length(args: &[Value]) -> Result<Value, ApexError> {
         den /= 5;
     }
     if den == BigInt::one() {
-        return Ok(Value::Int(BigInt::zero()));
+        return Ok(BigInt::zero());
     }
     let ten = BigInt::from(10);
     let mut remainder = ten.mod_floor(&den);
@@ -364,7 +395,7 @@ fn fraction_period_length(args: &[Value]) -> Result<Value, ApexError> {
             ));
         }
     }
-    Ok(Value::Int(period))
+    Ok(period)
 }
 
 fn fraction_to_decimal(args: &[Value]) -> Result<Value, ApexError> {
@@ -409,6 +440,42 @@ fn decimal_to_fraction(args: &[Value]) -> Result<Value, ApexError> {
             "decimal_to_fraction expects either an Int or Number value",
         )),
     }
+}
+
+fn fraction_from_decimal_pattern(args: &[Value]) -> Result<Value, ApexError> {
+    if args.len() != 3 {
+        return Err(ApexError::new(
+            "fraction_from_decimal_pattern expects (integer, non_repeat, repeat) strings",
+        ));
+    }
+    let integer_text = expect_string(&args[0], "integer part")?;
+    let non_repeat = expect_string(&args[1], "non repeating digits")?;
+    let repeat = expect_string(&args[2], "repeating digits")?;
+    let integer_value: BigInt = integer_text
+        .parse()
+        .map_err(|_| ApexError::new("fraction_from_decimal_pattern integer must be numeric"))?;
+    let non_digits = parse_digit_string(&non_repeat, "non repeating digits")?;
+    let repeat_digits = parse_digit_string(&repeat, "repeating digits")?;
+    let non_len = non_repeat.len() as u32;
+    let repeat_len = repeat.len() as u32;
+    let mut fractional = BigRational::from_integer(BigInt::zero());
+    if non_len > 0 {
+        let scale = BigInt::from(10u32).pow(non_len);
+        fractional += BigRational::new(non_digits, scale);
+    }
+    if repeat_len > 0 && !repeat.is_empty() {
+        let non_scale = BigInt::from(10u32).pow(non_len);
+        let rep_scale = BigInt::from(10u32).pow(repeat_len) - BigInt::one();
+        let denom = non_scale * rep_scale;
+        fractional += BigRational::new(repeat_digits, denom);
+    }
+    let mut rational = BigRational::from_integer(integer_value.abs());
+    rational += fractional;
+    if integer_value.is_negative() {
+        rational = -rational;
+    }
+    let (num, den) = normalize_fraction(rational.numer().clone(), rational.denom().clone())?;
+    Ok(tuple_from_fraction(num, den))
 }
 
 fn fraction_is_reduced(args: &[Value]) -> Result<Value, ApexError> {
@@ -485,11 +552,10 @@ fn fraction_from_mixed(args: &[Value]) -> Result<Value, ApexError> {
     Ok(tuple_from_fraction(numerator, den))
 }
 
-fn fraction_decimal_parts(args: &[Value]) -> Result<Value, ApexError> {
-    let (num, den) = parse_single_fraction(args)?;
+fn decimal_breakdown(num: &BigInt, den: &BigInt) -> Result<(String, String, String), ApexError> {
     let abs_num = num.abs();
-    let integer_part = &abs_num / &den;
-    let mut remainder = &abs_num % &den;
+    let integer_part = &abs_num / den;
+    let mut remainder = &abs_num % den;
     let mut digits = Vec::new();
     let mut seen = HashMap::new();
     let mut repeat_start = None;
@@ -501,11 +567,11 @@ fn fraction_decimal_parts(args: &[Value]) -> Result<Value, ApexError> {
         }
         seen.insert(remainder.clone(), digits.len());
         remainder *= 10;
-        let digit = (&remainder / &den)
+        let digit = (&remainder / den)
             .to_u32()
             .ok_or_else(|| ApexError::new("Decimal digit exceeded supported precision"))?;
         digits.push((b'0' + (digit as u8)) as char);
-        remainder = remainder % &den;
+        remainder = remainder % den;
         steps += 1;
         if steps > 10_000 {
             return Err(ApexError::new(
@@ -524,11 +590,37 @@ fn fraction_decimal_parts(args: &[Value]) -> Result<Value, ApexError> {
     if num.is_negative() {
         integer_text = format!("-{}", integer_text);
     }
+    Ok((integer_text, non_repeat, repeat))
+}
+
+fn fraction_decimal_parts(args: &[Value]) -> Result<Value, ApexError> {
+    let (num, den) = parse_single_fraction(args)?;
+    let (integer_text, non_repeat, repeat) = decimal_breakdown(&num, &den)?;
     Ok(Value::Tuple(vec![
         Value::String(integer_text),
         Value::String(non_repeat),
         Value::String(repeat),
     ]))
+}
+
+fn fraction_decimal_cycle(args: &[Value]) -> Result<Value, ApexError> {
+    let (num, den) = parse_single_fraction(args)?;
+    let (_, non_repeat, repeat) = decimal_breakdown(&num, &den)?;
+    Ok(Value::Tuple(vec![
+        Value::String(non_repeat),
+        Value::String(repeat.clone()),
+        Value::Int(BigInt::from(repeat.len() as u64)),
+    ]))
+}
+
+fn fraction_to_percent(args: &[Value]) -> Result<Value, ApexError> {
+    let (num, den) = parse_single_fraction(args)?;
+    let ratio = BigRational::new(num, den);
+    let percent = ratio
+        .to_f64()
+        .ok_or_else(|| ApexError::new("Fraction is too large for percent conversion"))?
+        * 100.0;
+    Ok(Value::Number(percent))
 }
 
 fn fraction_continued_terms(args: &[Value]) -> Result<Value, ApexError> {
@@ -573,12 +665,65 @@ fn fraction_from_continued(args: &[Value]) -> Result<Value, ApexError> {
     Ok(tuple_from_fraction(numerator, denominator))
 }
 
+fn fraction_convergents(args: &[Value]) -> Result<Value, ApexError> {
+    let (fraction_args, limit_arg) = optional_limit_args(args, "fraction_convergents")?;
+    let (mut num, mut den) = parse_single_fraction(fraction_args)?;
+    if den.is_zero() {
+        return Err(ApexError::new("Fraction denominator cannot be zero"));
+    }
+    let limit = match limit_arg {
+        Some(value) => Some(
+            expect_positive_limit(value, "fraction_convergents")?
+                .to_usize()
+                .ok_or_else(|| ApexError::new("fraction_convergents limit exceeds usize range"))?,
+        ),
+        None => None,
+    };
+    let mut convergents = Vec::new();
+    let mut prev_num = BigInt::zero();
+    let mut prev_den = BigInt::one();
+    let mut curr_num = BigInt::one();
+    let mut curr_den = BigInt::zero();
+    let mut steps = 0usize;
+    loop {
+        let a = &num / &den;
+        let remainder = &num % &den;
+        let next_num = &a * &curr_num + &prev_num;
+        let next_den = &a * &curr_den + &prev_den;
+        convergents.push(tuple_from_fraction(next_num.clone(), next_den.clone()));
+        prev_num = curr_num;
+        prev_den = curr_den;
+        curr_num = next_num;
+        curr_den = next_den;
+        steps += 1;
+        if remainder.is_zero() || limit.map(|cap| steps >= cap).unwrap_or(false) {
+            break;
+        }
+        num = den;
+        den = remainder;
+    }
+    Ok(Value::Tuple(convergents))
+}
+
 fn fraction_limit_denominator(args: &[Value]) -> Result<Value, ApexError> {
     let (fraction_args, limit_value) = required_limit_args(args, "fraction_limit_denominator")?;
     let (num, den) = parse_single_fraction(fraction_args)?;
     let max_den = expect_positive_limit(limit_value, "fraction_limit_denominator")?;
     let (best_num, best_den) = limit_denominator(num, den, max_den)?;
     Ok(tuple_from_fraction(best_num, best_den))
+}
+
+fn fraction_full_reptend(args: &[Value]) -> Result<Value, ApexError> {
+    expect_length(args, 1)?;
+    let denom = expect_positive_limit(&args[0], "fraction_full_reptend")?;
+    if denom <= BigInt::from(1u8) {
+        return Ok(Value::Bool(false));
+    }
+    if !is_probably_prime(&denom) {
+        return Ok(Value::Bool(false));
+    }
+    let period = decimal_period_for_denominator(denom.clone())?;
+    Ok(Value::Bool(period == denom - BigInt::one()))
 }
 
 fn limit_denominator(
@@ -682,6 +827,26 @@ fn approximate_fraction(value: f64, max_den: u64) -> Result<(BigInt, BigInt), Ap
     normalize_fraction(numerator, k1)
 }
 
+fn is_probably_prime(n: &BigInt) -> bool {
+    if *n < BigInt::from(2u8) {
+        return false;
+    }
+    if *n == BigInt::from(2u8) || *n == BigInt::from(3u8) {
+        return true;
+    }
+    if (n % 2u8).is_zero() {
+        return false;
+    }
+    let mut divisor = BigInt::from(3u8);
+    while &divisor * &divisor <= *n {
+        if (n % &divisor).is_zero() {
+            return false;
+        }
+        divisor += 2;
+    }
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -739,6 +904,30 @@ mod tests {
 
         let rational = decimal_to_fraction(&[Value::Number(0.125), int(128)]).unwrap();
         assert_eq!(rational, tuple(&[1, 8]));
+    }
+
+    #[test]
+    fn decimal_cycle_reports_repeating_blocks() {
+        let cycle = fraction_decimal_cycle(&[int(1), int(6)]).unwrap();
+        if let Value::Tuple(values) = cycle {
+            assert_eq!(values[0], Value::String("1".into()));
+            assert_eq!(values[1], Value::String("6".into()));
+        } else {
+            panic!("expected tuple");
+        }
+    }
+
+    #[test]
+    fn percent_conversion_and_decimal_pattern() {
+        let percent = fraction_to_percent(&[int(1), int(4)]).unwrap();
+        assert!(matches!(percent, Value::Number(value) if (value - 25.0).abs() < 1e-10));
+        let reconstructed = fraction_from_decimal_pattern(&[
+            Value::String("0".into()),
+            Value::String(String::new()),
+            Value::String("3".into()),
+        ])
+        .unwrap();
+        assert_eq!(reconstructed, tuple(&[1, 3]));
     }
 
     #[test]
@@ -833,5 +1022,23 @@ mod tests {
         }
         let tuple_limit = fraction_limit_denominator(&[tuple_args, int(5)]).unwrap();
         assert_eq!(tuple_limit, tuple(&[3, 4]));
+    }
+
+    #[test]
+    fn convergents_emit_prefixes() {
+        let convergents = fraction_convergents(&[int(5), int(7)]).unwrap();
+        if let Value::Tuple(values) = convergents {
+            assert!(values.len() >= 2);
+        } else {
+            panic!("expected convergents tuple");
+        }
+    }
+
+    #[test]
+    fn full_reptend_checks_period() {
+        let seven = fraction_full_reptend(&[int(7)]).unwrap();
+        assert_eq!(seven, Value::Bool(true));
+        let eight = fraction_full_reptend(&[int(8)]).unwrap();
+        assert_eq!(eight, Value::Bool(false));
     }
 }

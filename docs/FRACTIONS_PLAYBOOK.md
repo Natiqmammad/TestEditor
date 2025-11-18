@@ -17,6 +17,7 @@ This booklet documents the `fractions` native module so you can treat ordinary (
 | `fraction_numerator(a)` / `fraction_denominator(a)` | Extract components | Keeps chained computations ergonomic. |
 | `fraction_continued_terms(a, limit?)` | Emit continued-fraction coefficients for any rational | Accepts tuples or `(num, den)` pairs; optional limit caps the expansion length. |
 | `fraction_from_continued(tuple)` | Reconstruct a rational from continued-fraction coefficients | Useful for coding convergents or validating textbook derivations. |
+| `fraction_convergents(a, limit?)` | Return the sequence of convergents derived from the continued-fraction expansion | Handy for best-approximation searches or intermediate proofs. |
 | `fraction_limit_denominator(a, max_den)` | Clamp rationals to a maximum denominator | Implements the same convergent search as Python’s `limit_denominator`. |
 
 ### Ordinary example
@@ -43,7 +44,11 @@ fn adi_demo() {
 | `fraction_is_terminating(a)` | Check whether only factors of `2` and `5` appear in the denominator | Returns `Bool`. |
 | `fraction_period_length(a)` | Report the length of the repeating block | Uses modular arithmetic, capped at 100 000 iterations to avoid runaway periods. |
 | `fraction_decimal_parts(a)` | Return `(integer_part, non_repeating, repeating)` strings | Works for negative rationals by prefixing the integer part with `-` when appropriate. |
+| `fraction_decimal_cycle(a)` | Return `(non_repeating, repeating, length)` for just the fractional portion | Ideal for modular proofs that only care about the repetend. |
 | `fraction_to_decimal(a)` / `decimal_to_fraction(x, max_den)` | Bridge rationals and IEEE-754 doubles | The continued-fraction approximation honors the `max_den` bound. |
+| `fraction_to_percent(a)` | Convert a rational into a double percentage (e.g., `1/4` → `25.0`) | Helpful when surfacing ratios to UI/logging layers. |
+| `fraction_from_decimal_pattern(integer, non_repeat, repeat)` | Rebuild exact rationals from textual decimal patterns | Pass strings like `( "0", "12", "34" )` to represent `0.12(34)` without floating-point round-off. |
+| `fraction_full_reptend(den)` | Check whether `1/den` achieves the maximal repeating period (`den-1`) | Useful for cyclic-prime explorations. |
 | `fraction_egyptian_terms(a)` | Emit a greedy Egyptian decomposition | Useful for classical proofs and memory-friendly encodings (pairs nicely with `mem.write_block`). |
 
 ### Decimal example
@@ -57,6 +62,35 @@ fn onluq_demo() {
     let parts = fractions.fraction_decimal_parts(fractions.fraction_reduce(1, 6));
     // parts == ("0", "1", "6") for 0.1\u0305
     return terminating && (parts == parts);
+}
+```
+
+### Decimal cycles and full-reptend checks
+
+Use `fraction_decimal_cycle` when you only care about the fractional repetend and its length, and `fraction_full_reptend` to flag cyclic primes whose reciprocal repeats with period `den − 1`:
+
+```apex
+import fractions;
+
+fn cycle_demo() {
+    let digits = fractions.fraction_decimal_cycle(1, 7); // -> ("", "142857", 6)
+    let is_full = fractions.fraction_full_reptend(7);     // true because 1/7 has period 6
+    return digits == ("", "142857", 6) && is_full;
+}
+```
+
+### Percent conversions and repeating-decimal reconstruction
+
+`fraction_to_percent` emits familiar percentage doubles when you want to surface ratios in UI or logs, and `fraction_from_decimal_pattern` accepts three strings—integer part, non-repeating digits, repeating digits—to rebuild an exact rational without floating-point round-off:
+
+```apex
+import fractions;
+
+fn percent_and_pattern() {
+    let tax_rate = fractions.fraction_reduce(1, 4); // 25%
+    let percent = fractions.fraction_to_percent(tax_rate); // 25.0
+    let repeating = fractions.fraction_from_decimal_pattern("0", "", "3"); // -> (1, 3)
+    return percent == 25.0 && repeating == fractions.fraction_reduce(1, 3);
 }
 ```
 
@@ -88,7 +122,8 @@ fn convergent_demo() {
     let terms = fractions.fraction_continued_terms(ratio, 5); // -> (3, 7, 16)
     let rebuilt = fractions.fraction_from_continued(terms);
     let limited = fractions.fraction_limit_denominator(ratio, 10); // -> (22, 7)
-    return rebuilt == ratio && limited == fractions.fraction_add(22, 7, 0, 1);
+    let convergents = fractions.fraction_convergents(ratio, 3); // -> ((3,1), (22,7), (333,106))
+    return rebuilt == ratio && limited == fractions.fraction_add(22, 7, 0, 1) && convergents == convergents;
 }
 ```
 

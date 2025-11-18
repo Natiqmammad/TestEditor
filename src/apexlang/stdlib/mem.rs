@@ -9,7 +9,8 @@ use crate::apexlang::ast::Value;
 use crate::apexlang::error::ApexError;
 
 use super::support::{
-    expect_int_arg, expect_tuple_arg, expect_u32_arg, expect_u64_arg, expect_usize_arg,
+    expect_int_arg, expect_number_arg, expect_tuple_arg, expect_u128_arg, expect_u32_arg,
+    expect_u64_arg, expect_usize_arg,
 };
 use super::{NativeCallable, NativeRegistry};
 
@@ -29,6 +30,7 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!(functions, "free_bytes", free_bytes);
     add!(functions, "buffer_len", buffer_len);
     add!(functions, "pointer_offset", pointer_offset);
+    add!(functions, "pointer_diff", pointer_diff);
     add!(functions, "write_byte", write_byte);
     add!(functions, "read_byte", read_byte);
     add!(functions, "memset", memset);
@@ -37,6 +39,7 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!(functions, "write_block", write_block);
     add!(functions, "compare", compare_regions);
     add!(functions, "find_byte", find_byte);
+    add!(functions, "find_pattern", find_pattern);
     add!(functions, "checksum", checksum_region);
     add!(functions, "swap_ranges", swap_ranges);
     add!(functions, "reverse_block", reverse_block);
@@ -55,6 +58,31 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!(functions, "bit_clear", bit_clear);
     add!(functions, "bit_toggle", bit_toggle);
     add!(functions, "bit_count", bit_count);
+    add!(functions, "read_u16_le", read_u16_le);
+    add!(functions, "write_u16_le", write_u16_le);
+    add!(functions, "read_u16_be", read_u16_be);
+    add!(functions, "write_u16_be", write_u16_be);
+    add!(functions, "read_u32_le", read_u32_le);
+    add!(functions, "write_u32_le", write_u32_le);
+    add!(functions, "read_u32_be", read_u32_be);
+    add!(functions, "write_u32_be", write_u32_be);
+    add!(functions, "read_u64_le", read_u64_le);
+    add!(functions, "write_u64_le", write_u64_le);
+    add!(functions, "read_u64_be", read_u64_be);
+    add!(functions, "write_u64_be", write_u64_be);
+    add!(functions, "read_u128_le", read_u128_le);
+    add!(functions, "write_u128_le", write_u128_le);
+    add!(functions, "read_u128_be", read_u128_be);
+    add!(functions, "write_u128_be", write_u128_be);
+    add!(functions, "read_f32_le", read_f32_le);
+    add!(functions, "write_f32_le", write_f32_le);
+    add!(functions, "read_f32_be", read_f32_be);
+    add!(functions, "write_f32_be", write_f32_be);
+    add!(functions, "read_f64_le", read_f64_le);
+    add!(functions, "write_f64_le", write_f64_le);
+    add!(functions, "read_f64_be", read_f64_be);
+    add!(functions, "write_f64_be", write_f64_be);
+    add!(functions, "hexdump", hexdump_region);
     add!(functions, "smart_pointer_new", smart_pointer_new);
     add!(functions, "smart_pointer_get", smart_pointer_get);
     add!(functions, "smart_pointer_set", smart_pointer_set);
@@ -127,6 +155,18 @@ fn pointer_offset(args: &[Value]) -> Result<Value, ApexError> {
         return Err(ApexError::new("Pointer offset exceeds buffer length"));
     }
     Ok(pointer_value(handle, new_offset))
+}
+
+fn pointer_diff(args: &[Value]) -> Result<Value, ApexError> {
+    let (left_handle, left_offset) = expect_pointer(args, 0, "pointer_diff")?;
+    let (right_handle, right_offset) = expect_pointer(args, 1, "pointer_diff")?;
+    if left_handle != right_handle {
+        return Err(ApexError::new(
+            "pointer_diff expects pointers derived from the same buffer",
+        ));
+    }
+    let diff = BigInt::from(left_offset as u64) - BigInt::from(right_offset as u64);
+    Ok(Value::Int(diff))
 }
 
 fn write_byte(args: &[Value]) -> Result<Value, ApexError> {
@@ -271,6 +311,45 @@ fn write_block(args: &[Value]) -> Result<Value, ApexError> {
     Ok(Value::Bool(true))
 }
 
+fn read_u16_le(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.read_u16_le")?;
+    let heap = BUFFER_HEAP
+        .lock()
+        .map_err(|_| ApexError::new("Memory heap lock poisoned"))?;
+    let buffer = heap
+        .buffers
+        .get(&handle)
+        .ok_or_else(|| ApexError::new("Unknown buffer handle"))?;
+    if offset + 2 > buffer.len() {
+        return Err(ApexError::new("mem.read_u16_le exceeds buffer length"));
+    }
+    let mut bytes = [0u8; 2];
+    bytes.copy_from_slice(&buffer[offset..offset + 2]);
+    Ok(Value::Int(BigInt::from(u16::from_le_bytes(bytes))))
+}
+
+fn write_u16_le(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.write_u16_le")?;
+    let raw = expect_u32_arg(args, 1, "mem.write_u16_le")?;
+    if raw > u16::MAX as u32 {
+        return Err(ApexError::new(
+            "mem.write_u16_le expects a value that fits in 16 bits",
+        ));
+    }
+    let mut heap = BUFFER_HEAP
+        .lock()
+        .map_err(|_| ApexError::new("Memory heap lock poisoned"))?;
+    let buffer = heap
+        .buffers
+        .get_mut(&handle)
+        .ok_or_else(|| ApexError::new("Unknown buffer handle"))?;
+    if offset + 2 > buffer.len() {
+        return Err(ApexError::new("mem.write_u16_le exceeds buffer length"));
+    }
+    buffer[offset..offset + 2].copy_from_slice(&(raw as u16).to_le_bytes());
+    Ok(Value::Bool(true))
+}
+
 fn compare_regions(args: &[Value]) -> Result<Value, ApexError> {
     let (left_handle, left_offset) = expect_pointer(args, 0, "mem.compare")?;
     let (right_handle, right_offset) = expect_pointer(args, 1, "mem.compare")?;
@@ -319,6 +398,55 @@ fn find_byte(args: &[Value]) -> Result<Value, ApexError> {
     for (index, byte) in buffer[offset..].iter().enumerate() {
         if *byte == target as u8 {
             return Ok(Value::Int(BigInt::from(offset + index)));
+        }
+    }
+    Ok(Value::Int(BigInt::from(-1)))
+}
+
+fn find_pattern(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.find_pattern")?;
+    let pattern_tuple = expect_tuple_arg(args, 1, "mem.find_pattern")?;
+    if pattern_tuple.is_empty() {
+        return Err(ApexError::new(
+            "mem.find_pattern expects a non-empty pattern tuple",
+        ));
+    }
+    let mut pattern = Vec::with_capacity(pattern_tuple.len());
+    for value in pattern_tuple {
+        match value {
+            Value::Int(v) => {
+                let byte = v.to_u32().ok_or_else(|| {
+                    ApexError::new("mem.find_pattern expects byte values in [0, 255]")
+                })?;
+                if byte > 255 {
+                    return Err(ApexError::new(
+                        "mem.find_pattern expects byte values in [0, 255]",
+                    ));
+                }
+                pattern.push(byte as u8);
+            }
+            _ => {
+                return Err(ApexError::new(
+                    "mem.find_pattern expects a tuple of byte integers",
+                ))
+            }
+        }
+    }
+    let heap = BUFFER_HEAP
+        .lock()
+        .map_err(|_| ApexError::new("Memory heap lock poisoned"))?;
+    let buffer = heap
+        .buffers
+        .get(&handle)
+        .ok_or_else(|| ApexError::new("Unknown buffer handle"))?;
+    if offset + pattern.len() > buffer.len() {
+        return Err(ApexError::new(
+            "mem.find_pattern search exceeds buffer length",
+        ));
+    }
+    for cursor in offset..=buffer.len() - pattern.len() {
+        if buffer[cursor..cursor + pattern.len()] == pattern[..] {
+            return Ok(Value::Int(BigInt::from(cursor)));
         }
     }
     Ok(Value::Int(BigInt::from(-1)))
@@ -581,6 +709,335 @@ fn bit_count(args: &[Value]) -> Result<Value, ApexError> {
     Ok(Value::Int(count))
 }
 
+fn read_u16_be(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.read_u16_be")?;
+    let heap = BUFFER_HEAP
+        .lock()
+        .map_err(|_| ApexError::new("Memory heap lock poisoned"))?;
+    let buffer = heap
+        .buffers
+        .get(&handle)
+        .ok_or_else(|| ApexError::new("Unknown buffer handle"))?;
+    if offset + 2 > buffer.len() {
+        return Err(ApexError::new("mem.read_u16_be exceeds buffer length"));
+    }
+    let mut bytes = [0u8; 2];
+    bytes.copy_from_slice(&buffer[offset..offset + 2]);
+    Ok(Value::Int(BigInt::from(u16::from_be_bytes(bytes))))
+}
+
+fn write_u16_be(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.write_u16_be")?;
+    let raw = expect_u32_arg(args, 1, "mem.write_u16_be")?;
+    if raw > u16::MAX as u32 {
+        return Err(ApexError::new(
+            "mem.write_u16_be expects a value that fits in 16 bits",
+        ));
+    }
+    let mut heap = BUFFER_HEAP
+        .lock()
+        .map_err(|_| ApexError::new("Memory heap lock poisoned"))?;
+    let buffer = heap
+        .buffers
+        .get_mut(&handle)
+        .ok_or_else(|| ApexError::new("Unknown buffer handle"))?;
+    if offset + 2 > buffer.len() {
+        return Err(ApexError::new("mem.write_u16_be exceeds buffer length"));
+    }
+    buffer[offset..offset + 2].copy_from_slice(&u16::to_be_bytes(raw as u16));
+    Ok(Value::Bool(true))
+}
+
+fn read_u32_le(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.read_u32_le")?;
+    let heap = BUFFER_HEAP
+        .lock()
+        .map_err(|_| ApexError::new("Memory heap lock poisoned"))?;
+    let buffer = heap
+        .buffers
+        .get(&handle)
+        .ok_or_else(|| ApexError::new("Unknown buffer handle"))?;
+    if offset + 4 > buffer.len() {
+        return Err(ApexError::new("mem.read_u32_le exceeds buffer length"));
+    }
+    let mut bytes = [0u8; 4];
+    bytes.copy_from_slice(&buffer[offset..offset + 4]);
+    Ok(Value::Int(BigInt::from(u32::from_le_bytes(bytes))))
+}
+
+fn write_u32_le(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.write_u32_le")?;
+    let raw = expect_u64_arg(args, 1, "mem.write_u32_le")?;
+    if raw > u32::MAX as u64 {
+        return Err(ApexError::new(
+            "mem.write_u32_le expects a value that fits in 32 bits",
+        ));
+    }
+    let mut heap = BUFFER_HEAP
+        .lock()
+        .map_err(|_| ApexError::new("Memory heap lock poisoned"))?;
+    let buffer = heap
+        .buffers
+        .get_mut(&handle)
+        .ok_or_else(|| ApexError::new("Unknown buffer handle"))?;
+    if offset + 4 > buffer.len() {
+        return Err(ApexError::new("mem.write_u32_le exceeds buffer length"));
+    }
+    let bytes = (raw as u32).to_le_bytes();
+    buffer[offset..offset + 4].copy_from_slice(&bytes);
+    Ok(Value::Bool(true))
+}
+
+fn read_u32_be(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.read_u32_be")?;
+    let heap = BUFFER_HEAP
+        .lock()
+        .map_err(|_| ApexError::new("Memory heap lock poisoned"))?;
+    let buffer = heap
+        .buffers
+        .get(&handle)
+        .ok_or_else(|| ApexError::new("Unknown buffer handle"))?;
+    if offset + 4 > buffer.len() {
+        return Err(ApexError::new("mem.read_u32_be exceeds buffer length"));
+    }
+    let mut bytes = [0u8; 4];
+    bytes.copy_from_slice(&buffer[offset..offset + 4]);
+    Ok(Value::Int(BigInt::from(u32::from_be_bytes(bytes))))
+}
+
+fn write_u32_be(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.write_u32_be")?;
+    let raw = expect_u32_arg(args, 1, "mem.write_u32_be")?;
+    let mut heap = BUFFER_HEAP
+        .lock()
+        .map_err(|_| ApexError::new("Memory heap lock poisoned"))?;
+    let buffer = heap
+        .buffers
+        .get_mut(&handle)
+        .ok_or_else(|| ApexError::new("Unknown buffer handle"))?;
+    if offset + 4 > buffer.len() {
+        return Err(ApexError::new("mem.write_u32_be exceeds buffer length"));
+    }
+    buffer[offset..offset + 4].copy_from_slice(&u32::to_be_bytes(raw));
+    Ok(Value::Bool(true))
+}
+
+fn read_u64_le(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.read_u64_le")?;
+    let heap = BUFFER_HEAP
+        .lock()
+        .map_err(|_| ApexError::new("Memory heap lock poisoned"))?;
+    let buffer = heap
+        .buffers
+        .get(&handle)
+        .ok_or_else(|| ApexError::new("Unknown buffer handle"))?;
+    if offset + 8 > buffer.len() {
+        return Err(ApexError::new("mem.read_u64_le exceeds buffer length"));
+    }
+    let mut bytes = [0u8; 8];
+    bytes.copy_from_slice(&buffer[offset..offset + 8]);
+    Ok(Value::Int(BigInt::from(u64::from_le_bytes(bytes))))
+}
+
+fn read_u64_be(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.read_u64_be")?;
+    let heap = BUFFER_HEAP
+        .lock()
+        .map_err(|_| ApexError::new("Memory heap lock poisoned"))?;
+    let buffer = heap
+        .buffers
+        .get(&handle)
+        .ok_or_else(|| ApexError::new("Unknown buffer handle"))?;
+    if offset + 8 > buffer.len() {
+        return Err(ApexError::new("mem.read_u64_be exceeds buffer length"));
+    }
+    let mut bytes = [0u8; 8];
+    bytes.copy_from_slice(&buffer[offset..offset + 8]);
+    Ok(Value::Int(BigInt::from(u64::from_be_bytes(bytes))))
+}
+
+fn write_u64_be(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.write_u64_be")?;
+    let raw = expect_u64_arg(args, 1, "mem.write_u64_be")?;
+    let mut heap = BUFFER_HEAP
+        .lock()
+        .map_err(|_| ApexError::new("Memory heap lock poisoned"))?;
+    let buffer = heap
+        .buffers
+        .get_mut(&handle)
+        .ok_or_else(|| ApexError::new("Unknown buffer handle"))?;
+    if offset + 8 > buffer.len() {
+        return Err(ApexError::new("mem.write_u64_be exceeds buffer length"));
+    }
+    buffer[offset..offset + 8].copy_from_slice(&u64::to_be_bytes(raw));
+    Ok(Value::Bool(true))
+}
+
+fn read_u128_le(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.read_u128_le")?;
+    let heap = BUFFER_HEAP
+        .lock()
+        .map_err(|_| ApexError::new("Memory heap lock poisoned"))?;
+    let buffer = heap
+        .buffers
+        .get(&handle)
+        .ok_or_else(|| ApexError::new("Unknown buffer handle"))?;
+    if offset + 16 > buffer.len() {
+        return Err(ApexError::new("mem.read_u128_le exceeds buffer length"));
+    }
+    let mut bytes = [0u8; 16];
+    bytes.copy_from_slice(&buffer[offset..offset + 16]);
+    Ok(Value::Int(BigInt::from(u128::from_le_bytes(bytes))))
+}
+
+fn write_u128_le(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.write_u128_le")?;
+    let raw = expect_u128_arg(args, 1, "mem.write_u128_le")?;
+    let mut heap = BUFFER_HEAP
+        .lock()
+        .map_err(|_| ApexError::new("Memory heap lock poisoned"))?;
+    let buffer = heap
+        .buffers
+        .get_mut(&handle)
+        .ok_or_else(|| ApexError::new("Unknown buffer handle"))?;
+    if offset + 16 > buffer.len() {
+        return Err(ApexError::new("mem.write_u128_le exceeds buffer length"));
+    }
+    buffer[offset..offset + 16].copy_from_slice(&u128::to_le_bytes(raw));
+    Ok(Value::Bool(true))
+}
+
+fn read_u128_be(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.read_u128_be")?;
+    let heap = BUFFER_HEAP
+        .lock()
+        .map_err(|_| ApexError::new("Memory heap lock poisoned"))?;
+    let buffer = heap
+        .buffers
+        .get(&handle)
+        .ok_or_else(|| ApexError::new("Unknown buffer handle"))?;
+    if offset + 16 > buffer.len() {
+        return Err(ApexError::new("mem.read_u128_be exceeds buffer length"));
+    }
+    let mut bytes = [0u8; 16];
+    bytes.copy_from_slice(&buffer[offset..offset + 16]);
+    Ok(Value::Int(BigInt::from(u128::from_be_bytes(bytes))))
+}
+
+fn write_u128_be(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.write_u128_be")?;
+    let raw = expect_u128_arg(args, 1, "mem.write_u128_be")?;
+    let mut heap = BUFFER_HEAP
+        .lock()
+        .map_err(|_| ApexError::new("Memory heap lock poisoned"))?;
+    let buffer = heap
+        .buffers
+        .get_mut(&handle)
+        .ok_or_else(|| ApexError::new("Unknown buffer handle"))?;
+    if offset + 16 > buffer.len() {
+        return Err(ApexError::new("mem.write_u128_be exceeds buffer length"));
+    }
+    buffer[offset..offset + 16].copy_from_slice(&u128::to_be_bytes(raw));
+    Ok(Value::Bool(true))
+}
+
+fn read_f32_le(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.read_f32_le")?;
+    let bytes = read_buffer_window(handle, offset, 4, "mem.read_f32_le")?;
+    let mut block = [0u8; 4];
+    block.copy_from_slice(&bytes);
+    Ok(Value::Number(f32::from_le_bytes(block) as f64))
+}
+
+fn read_f32_be(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.read_f32_be")?;
+    let bytes = read_buffer_window(handle, offset, 4, "mem.read_f32_be")?;
+    let mut block = [0u8; 4];
+    block.copy_from_slice(&bytes);
+    Ok(Value::Number(f32::from_be_bytes(block) as f64))
+}
+
+fn write_f32_le(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.write_f32_le")?;
+    let value = expect_number_arg(args, 1, "mem.write_f32_le")? as f32;
+    write_buffer_window(handle, offset, &value.to_le_bytes(), "mem.write_f32_le")?;
+    Ok(Value::Bool(true))
+}
+
+fn write_f32_be(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.write_f32_be")?;
+    let value = expect_number_arg(args, 1, "mem.write_f32_be")? as f32;
+    write_buffer_window(handle, offset, &value.to_be_bytes(), "mem.write_f32_be")?;
+    Ok(Value::Bool(true))
+}
+
+fn read_f64_le(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.read_f64_le")?;
+    let bytes = read_buffer_window(handle, offset, 8, "mem.read_f64_le")?;
+    let mut block = [0u8; 8];
+    block.copy_from_slice(&bytes);
+    Ok(Value::Number(f64::from_le_bytes(block)))
+}
+
+fn read_f64_be(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.read_f64_be")?;
+    let bytes = read_buffer_window(handle, offset, 8, "mem.read_f64_be")?;
+    let mut block = [0u8; 8];
+    block.copy_from_slice(&bytes);
+    Ok(Value::Number(f64::from_be_bytes(block)))
+}
+
+fn write_f64_le(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.write_f64_le")?;
+    let value = expect_number_arg(args, 1, "mem.write_f64_le")?;
+    write_buffer_window(handle, offset, &value.to_le_bytes(), "mem.write_f64_le")?;
+    Ok(Value::Bool(true))
+}
+
+fn write_f64_be(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.write_f64_be")?;
+    let value = expect_number_arg(args, 1, "mem.write_f64_be")?;
+    write_buffer_window(handle, offset, &value.to_be_bytes(), "mem.write_f64_be")?;
+    Ok(Value::Bool(true))
+}
+
+fn write_u64_le(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.write_u64_le")?;
+    let raw = expect_u64_arg(args, 1, "mem.write_u64_le")?;
+    let mut heap = BUFFER_HEAP
+        .lock()
+        .map_err(|_| ApexError::new("Memory heap lock poisoned"))?;
+    let buffer = heap
+        .buffers
+        .get_mut(&handle)
+        .ok_or_else(|| ApexError::new("Unknown buffer handle"))?;
+    if offset + 8 > buffer.len() {
+        return Err(ApexError::new("mem.write_u64_le exceeds buffer length"));
+    }
+    buffer[offset..offset + 8].copy_from_slice(&raw.to_le_bytes());
+    Ok(Value::Bool(true))
+}
+
+fn hexdump_region(args: &[Value]) -> Result<Value, ApexError> {
+    let (handle, offset) = expect_pointer(args, 0, "mem.hexdump")?;
+    let len = expect_usize_arg(args, 1, "mem.hexdump")?;
+    let heap = BUFFER_HEAP
+        .lock()
+        .map_err(|_| ApexError::new("Memory heap lock poisoned"))?;
+    let buffer = heap
+        .buffers
+        .get(&handle)
+        .ok_or_else(|| ApexError::new("Unknown buffer handle"))?;
+    if offset + len > buffer.len() {
+        return Err(ApexError::new("mem.hexdump exceeds buffer length"));
+    }
+    let mut chunks = Vec::with_capacity(len);
+    for byte in &buffer[offset..offset + len] {
+        chunks.push(format!("{:02x}", byte));
+    }
+    Ok(Value::String(chunks.join(" ")))
+}
+
 fn smart_pointer_new(args: &[Value]) -> Result<Value, ApexError> {
     let value = args
         .get(0)
@@ -638,6 +1095,45 @@ fn pointer_value(handle: u64, offset: usize) -> Value {
         Value::Int(BigInt::from(handle)),
         Value::Int(BigInt::from(offset)),
     ])
+}
+
+fn read_buffer_window(
+    handle: u64,
+    offset: usize,
+    width: usize,
+    name: &str,
+) -> Result<Vec<u8>, ApexError> {
+    let heap = BUFFER_HEAP
+        .lock()
+        .map_err(|_| ApexError::new("Memory heap lock poisoned"))?;
+    let buffer = heap
+        .buffers
+        .get(&handle)
+        .ok_or_else(|| ApexError::new("Unknown buffer handle"))?;
+    if offset + width > buffer.len() {
+        return Err(ApexError::new(format!("{} exceeds buffer length", name)));
+    }
+    Ok(buffer[offset..offset + width].to_vec())
+}
+
+fn write_buffer_window(
+    handle: u64,
+    offset: usize,
+    bytes: &[u8],
+    name: &str,
+) -> Result<(), ApexError> {
+    let mut heap = BUFFER_HEAP
+        .lock()
+        .map_err(|_| ApexError::new("Memory heap lock poisoned"))?;
+    let buffer = heap
+        .buffers
+        .get_mut(&handle)
+        .ok_or_else(|| ApexError::new("Unknown buffer handle"))?;
+    if offset + bytes.len() > buffer.len() {
+        return Err(ApexError::new(format!("{} exceeds buffer length", name)));
+    }
+    buffer[offset..offset + bytes.len()].copy_from_slice(bytes);
+    Ok(())
 }
 
 fn expect_pointer(args: &[Value], index: usize, name: &str) -> Result<(u64, usize), ApexError> {
@@ -833,5 +1329,104 @@ mod tests {
         assert_eq!(checksum, Value::Int(10.into()));
         free_bytes(&[ptr]).unwrap();
         free_bytes(&[other]).unwrap();
+    }
+
+    #[test]
+    fn u32_helpers_and_hexdump_cover_bytes() {
+        let ptr = alloc_bytes(&[Value::Int(32.into())]).expect("alloc");
+        write_u32_le(&[ptr.clone(), Value::Int(0x11223344u64.into())]).expect("write");
+        let read_back = read_u32_le(&[ptr.clone()]).expect("read");
+        assert_eq!(read_back, Value::Int(0x11223344u32.into()));
+        write_u16_le(&[ptr.clone(), Value::Int(0xbeefu32.into())]).expect("write16");
+        let read16 = read_u16_le(&[ptr.clone()]).expect("read16");
+        assert_eq!(read16, Value::Int(0xbeefu32.into()));
+        write_u16_be(&[ptr.clone(), Value::Int(0x1234u32.into())]).expect("write16be");
+        let read16_be = read_u16_be(&[ptr.clone()]).expect("read16be");
+        assert_eq!(read16_be, Value::Int(0x1234u32.into()));
+        write_u64_le(&[ptr.clone(), Value::Int(0x0102030405060708u64.into())]).expect("write64");
+        let read64 = read_u64_le(&[ptr.clone()]).expect("read64");
+        assert_eq!(read64, Value::Int(0x0102030405060708u64.into()));
+        write_u64_be(&[ptr.clone(), Value::Int(0x0a0b0c0d0e0f1011u64.into())]).expect("write64be");
+        let read64_be = read_u64_be(&[ptr.clone()]).expect("read64be");
+        assert_eq!(read64_be, Value::Int(0x0a0b0c0d0e0f1011u64.into()));
+        write_u32_be(&[ptr.clone(), Value::Int(0xcafebabeu64.into())]).expect("write32be");
+        let read32_be = read_u32_be(&[ptr.clone()]).expect("read32be");
+        assert_eq!(read32_be, Value::Int(0xcafebabeu64.into()));
+        write_u128_le(&[
+            ptr.clone(),
+            Value::Int(0x0102030405060708090a0b0c0d0e0f10u128.into()),
+        ])
+        .expect("write128le");
+        let read128_le = read_u128_le(&[ptr.clone()]).expect("read128le");
+        assert_eq!(
+            read128_le,
+            Value::Int(0x0102030405060708090a0b0c0d0e0f10u128.into())
+        );
+        write_u128_be(&[
+            ptr.clone(),
+            Value::Int(0x1112131415161718191a1b1c1d1e1f20u128.into()),
+        ])
+        .expect("write128be");
+        let read128_be = read_u128_be(&[ptr.clone()]).expect("read128be");
+        assert_eq!(
+            read128_be,
+            Value::Int(0x1112131415161718191a1b1c1d1e1f20u128.into())
+        );
+        write_block(&[
+            pointer_offset(&[ptr.clone(), Value::Int(4.into())]).unwrap(),
+            Value::Tuple(vec![
+                Value::Int(0.into()),
+                Value::Int(1.into()),
+                Value::Int(2.into()),
+                Value::Int(3.into()),
+            ]),
+        ])
+        .expect("write block");
+        let pattern_idx = find_pattern(&[
+            ptr.clone(),
+            Value::Tuple(vec![
+                Value::Int(1.into()),
+                Value::Int(2.into()),
+                Value::Int(3.into()),
+            ]),
+        ])
+        .expect("pattern");
+        assert_eq!(pattern_idx, Value::Int(5.into()));
+        let hexdump = hexdump_region(&[ptr.clone(), Value::Int(8.into())]).unwrap();
+        if let Value::String(text) = hexdump {
+            assert!(text.contains("00 01 02"));
+        } else {
+            panic!("expected hexdump string");
+        }
+        free_bytes(&[ptr]).unwrap();
+    }
+
+    #[test]
+    fn pointer_diff_tracks_offsets() {
+        let ptr = alloc_bytes(&[Value::Int(8.into())]).expect("alloc");
+        let ptr_offset = pointer_offset(&[ptr.clone(), Value::Int(3.into())]).unwrap();
+        let diff = pointer_diff(&[ptr_offset.clone(), ptr.clone()]).unwrap();
+        assert_eq!(diff, Value::Int(3.into()));
+        let reverse = pointer_diff(&[ptr.clone(), ptr_offset.clone()]).unwrap();
+        assert_eq!(reverse, Value::Int((-3).into()));
+        free_bytes(&[ptr]).unwrap();
+    }
+
+    #[test]
+    fn float_helpers_cover_endianness() {
+        let ptr = alloc_bytes(&[Value::Int(32.into())]).expect("alloc");
+        write_f32_le(&[ptr.clone(), Value::Number(3.25)]).expect("write f32 le");
+        let read_back = read_f32_le(&[ptr.clone()]).expect("read f32 le");
+        assert!(matches!(read_back, Value::Number(value) if (value - 3.25).abs() < 1e-6));
+        write_f32_be(&[ptr.clone(), Value::Number(-1.5)]).expect("write f32 be");
+        let read_be = read_f32_be(&[ptr.clone()]).expect("read f32 be");
+        assert!(matches!(read_be, Value::Number(value) if (value + 1.5).abs() < 1e-6));
+        write_f64_le(&[ptr.clone(), Value::Number(42.125)]).expect("write f64 le");
+        let read64 = read_f64_le(&[ptr.clone()]).expect("read f64 le");
+        assert!(matches!(read64, Value::Number(value) if (value - 42.125).abs() < 1e-10));
+        write_f64_be(&[ptr.clone(), Value::Number(-9.75)]).expect("write f64 be");
+        let read64_be = read_f64_be(&[ptr.clone()]).expect("read f64 be");
+        assert!(matches!(read64_be, Value::Number(value) if (value + 9.75).abs() < 1e-10));
+        free_bytes(&[ptr]).unwrap();
     }
 }

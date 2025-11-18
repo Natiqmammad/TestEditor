@@ -29,18 +29,26 @@ pub(super) fn register(registry: &mut NativeRegistry) {
 
     add!(&mut functions, "spawn", spawn_task);
     add!(&mut functions, "join", join_task);
+    add!(&mut functions, "cancel", cancel_task);
+    add!(&mut functions, "join_all", join_all);
     add!(&mut functions, "pending", pending_tasks);
     add!(&mut functions, "yield_now", yield_now);
     add!(&mut functions, "sleep_ms", sleep_ms);
     add!(&mut functions, "mailbox_create", mailbox_create);
     add!(&mut functions, "mailbox_send", mailbox_send);
+    add!(&mut functions, "mailbox_send_batch", mailbox_send_batch);
     add!(&mut functions, "mailbox_recv", mailbox_recv);
     add!(&mut functions, "mailbox_try_recv", mailbox_try_recv);
     add!(&mut functions, "mailbox_drain", mailbox_drain);
+    add!(&mut functions, "mailbox_recv_batch", mailbox_recv_batch);
+    add!(&mut functions, "mailbox_recv_any", mailbox_recv_any);
+    add!(&mut functions, "mailbox_forward", mailbox_forward);
     add!(&mut functions, "mailbox_close", mailbox_close);
+    add!(&mut functions, "mailbox_flush", mailbox_flush);
     add!(&mut functions, "mailbox_len", mailbox_len);
     add!(&mut functions, "mailbox_recv_timeout", mailbox_recv_timeout);
     add!(&mut functions, "mailbox_is_closed", mailbox_is_closed);
+    add!(&mut functions, "mailbox_stats", mailbox_stats);
     registry.register_module("async", functions);
 }
 
@@ -116,6 +124,60 @@ fn join_task(args: &[Value]) -> Result<Value, ApexError> {
     handle.join().map_err(|_| ApexError::new("Task panicked"))
 }
 
+fn cancel_task(args: &[Value]) -> Result<Value, ApexError> {
+    let id = expect_int_arg(args, 0, "async.cancel")?;
+    let id = id
+        .to_u64()
+        .ok_or_else(|| ApexError::new("Task id is too large"))?;
+    let handle = {
+        let mut registry = TASKS
+            .lock()
+            .map_err(|_| ApexError::new("Task registry lock poisoned"))?;
+        registry.tasks.remove(&id)
+    };
+    if let Some(_handle) = handle {
+        // Dropping a JoinHandle detaches the worker thread.
+        Ok(Value::Bool(true))
+    } else {
+        Ok(Value::Bool(false))
+    }
+}
+
+fn join_all(args: &[Value]) -> Result<Value, ApexError> {
+    if args.is_empty() {
+        return Ok(Value::Tuple(Vec::new()));
+    }
+    let mut join_handles = Vec::with_capacity(args.len());
+    {
+        let mut registry = TASKS
+            .lock()
+            .map_err(|_| ApexError::new("Task registry lock poisoned"))?;
+        for (index, handle_value) in args.iter().enumerate() {
+            let id = match handle_value {
+                Value::Int(id) => id.to_u64().ok_or_else(|| {
+                    ApexError::new(format!("async.join_all handle #{} is too large", index + 1))
+                })?,
+                _ => {
+                    return Err(ApexError::new(format!(
+                        "async.join_all expects integer handles (position {})",
+                        index + 1
+                    )))
+                }
+            };
+            let handle = registry
+                .tasks
+                .remove(&id)
+                .ok_or_else(|| ApexError::new("Unknown task handle"))?;
+            join_handles.push(handle);
+        }
+    }
+    let mut results = Vec::with_capacity(join_handles.len());
+    for handle in join_handles {
+        results.push(handle.join().map_err(|_| ApexError::new("Task panicked"))?);
+    }
+    Ok(Value::Tuple(results))
+}
+
 fn pending_tasks(_args: &[Value]) -> Result<Value, ApexError> {
     let registry = TASKS
         .lock()
@@ -178,6 +240,29 @@ fn mailbox_send(args: &[Value]) -> Result<Value, ApexError> {
     Ok(Value::Bool(true))
 }
 
+fn mailbox_send_batch(args: &[Value]) -> Result<Value, ApexError> {
+    if args.len() < 2 {
+        return Err(ApexError::new(
+            "async.mailbox_send_batch expects a handle and tuple payload",
+        ));
+    }
+    let handle = expect_mailbox_handle(args, 0, "async.mailbox_send_batch")?;
+    let payloads = expect_tuple_arg(args, 1, "async.mailbox_send_batch")?;
+    let view = get_mailbox_view(handle)?;
+    if view.closed.load(Ordering::SeqCst) {
+        return Err(ApexError::new("Mailbox is closed"));
+    }
+    let mut sent = 0usize;
+    for payload in payloads {
+        view.sender
+            .send(payload)
+            .map_err(|_| ApexError::new("Mailbox receiver disconnected"))?;
+        view.pending.fetch_add(1, Ordering::SeqCst);
+        sent += 1;
+    }
+    Ok(Value::Int(BigInt::from(sent)))
+}
+
 fn mailbox_recv(args: &[Value]) -> Result<Value, ApexError> {
     let handle = expect_mailbox_handle(args, 0, "async.mailbox_recv")?;
     let view = get_mailbox_view(handle)?;
@@ -215,35 +300,138 @@ fn mailbox_try_recv(args: &[Value]) -> Result<Value, ApexError> {
 fn mailbox_drain(args: &[Value]) -> Result<Value, ApexError> {
     let handle = expect_mailbox_handle(args, 0, "async.mailbox_drain")?;
     let view = get_mailbox_view(handle)?;
+    Ok(Value::Tuple(drain_mailbox_values(&view)?))
+}
+
+fn mailbox_recv_batch(args: &[Value]) -> Result<Value, ApexError> {
+    let handle = expect_mailbox_handle(args, 0, "async.mailbox_recv_batch")?;
+    let limit = expect_int_arg(args, 1, "async.mailbox_recv_batch")?;
+    let limit = limit
+        .to_usize()
+        .ok_or_else(|| ApexError::new("async.mailbox_recv_batch expects usize-sized limits"))?;
+    if limit == 0 {
+        return Err(ApexError::new(
+            "async.mailbox_recv_batch expects a positive batch length",
+        ));
+    }
+    let view = get_mailbox_view(handle)?;
     let guard = view
         .receiver
         .lock()
         .map_err(|_| ApexError::new("Mailbox receiver lock poisoned"))?;
-    let mut drained = Vec::new();
-    loop {
+    let mut results = Vec::new();
+    let first = guard
+        .recv()
+        .map_err(|_| ApexError::new("Mailbox receiver disconnected"))?;
+    view.pending.fetch_sub(1, Ordering::SeqCst);
+    results.push(first);
+    while results.len() < limit {
         match guard.try_recv() {
             Ok(value) => {
                 view.pending.fetch_sub(1, Ordering::SeqCst);
-                drained.push(value)
+                results.push(value);
             }
             Err(TryRecvError::Empty) => break,
             Err(TryRecvError::Disconnected) => break,
         }
     }
-    Ok(Value::Tuple(drained))
+    Ok(Value::Tuple(results))
+}
+
+fn mailbox_recv_any(args: &[Value]) -> Result<Value, ApexError> {
+    if args.is_empty() {
+        return Err(ApexError::new(
+            "async.mailbox_recv_any expects at least one mailbox handle",
+        ));
+    }
+    let mut views = Vec::with_capacity(args.len());
+    for (index, handle_value) in args.iter().enumerate() {
+        let handle = mailbox_handle_from_value(
+            handle_value,
+            &format!("async.mailbox_recv_any handle #{}", index + 1),
+        )?;
+        views.push((handle, get_mailbox_view(handle)?));
+    }
+    loop {
+        let mut live_mailboxes = false;
+        for (handle, view) in &views {
+            let maybe_value = {
+                let guard = view
+                    .receiver
+                    .lock()
+                    .map_err(|_| ApexError::new("Mailbox receiver lock poisoned"))?;
+                guard.try_recv()
+            };
+            match maybe_value {
+                Ok(value) => {
+                    view.pending.fetch_sub(1, Ordering::SeqCst);
+                    return Ok(Value::Tuple(vec![
+                        Value::Tuple(vec![Value::Int(BigInt::from(*handle))]),
+                        value,
+                    ]));
+                }
+                Err(TryRecvError::Empty) => {}
+                Err(TryRecvError::Disconnected) => continue,
+            }
+            if !view.closed.load(Ordering::SeqCst) || view.pending.load(Ordering::SeqCst) > 0 {
+                live_mailboxes = true;
+            }
+        }
+        if !live_mailboxes {
+            return Err(ApexError::new("All mailboxes are closed"));
+        }
+        thread::sleep(Duration::from_millis(1));
+    }
+}
+
+fn mailbox_forward(args: &[Value]) -> Result<Value, ApexError> {
+    let source = expect_mailbox_handle(args, 0, "async.mailbox_forward")?;
+    let target = expect_mailbox_handle(args, 1, "async.mailbox_forward")?;
+    if source == target {
+        return Ok(Value::Int(BigInt::from(0)));
+    }
+    let source_view = get_mailbox_view(source)?;
+    let target_view = get_mailbox_view(target)?;
+    if target_view.closed.load(Ordering::SeqCst) {
+        return Err(ApexError::new("Target mailbox is closed"));
+    }
+    let mut moved = 0usize;
+    let guard = source_view
+        .receiver
+        .lock()
+        .map_err(|_| ApexError::new("Mailbox receiver lock poisoned"))?;
+    loop {
+        match guard.try_recv() {
+            Ok(value) => {
+                target_view
+                    .sender
+                    .send(value)
+                    .map_err(|_| ApexError::new("Target mailbox receiver disconnected"))?;
+                target_view.pending.fetch_add(1, Ordering::SeqCst);
+                source_view.pending.fetch_sub(1, Ordering::SeqCst);
+                moved += 1;
+            }
+            Err(TryRecvError::Empty) => break,
+            Err(TryRecvError::Disconnected) => break,
+        }
+    }
+    Ok(Value::Int(BigInt::from(moved)))
 }
 
 fn mailbox_close(args: &[Value]) -> Result<Value, ApexError> {
     let handle = expect_mailbox_handle(args, 0, "async.mailbox_close")?;
-    let mut registry = MAILBOXES
-        .lock()
-        .map_err(|_| ApexError::new("Mailbox registry lock poisoned"))?;
-    if let Some(entry) = registry.boxes.remove(&handle) {
-        entry.closed.store(true, Ordering::SeqCst);
-        Ok(Value::Bool(true))
-    } else {
-        Ok(Value::Bool(false))
-    }
+    Ok(Value::Bool(close_mailbox_entry(handle)?))
+}
+
+fn mailbox_flush(args: &[Value]) -> Result<Value, ApexError> {
+    let handle = expect_mailbox_handle(args, 0, "async.mailbox_flush")?;
+    let view = get_mailbox_view(handle)?;
+    let drained = drain_mailbox_values(&view)?;
+    let closed = close_mailbox_entry(handle)?;
+    Ok(Value::Tuple(vec![
+        Value::Tuple(drained),
+        Value::Bool(closed),
+    ]))
 }
 
 fn mailbox_len(args: &[Value]) -> Result<Value, ApexError> {
@@ -277,6 +465,26 @@ fn mailbox_is_closed(args: &[Value]) -> Result<Value, ApexError> {
     let handle = expect_mailbox_handle(args, 0, "async.mailbox_is_closed")?;
     let view = get_mailbox_view(handle)?;
     Ok(Value::Bool(view.closed.load(Ordering::SeqCst)))
+}
+
+fn mailbox_stats(args: &[Value]) -> Result<Value, ApexError> {
+    let handle = expect_mailbox_handle(args, 0, "async.mailbox_stats")?;
+    let registry = MAILBOXES
+        .lock()
+        .map_err(|_| ApexError::new("Mailbox registry lock poisoned"))?;
+    if let Some(mailbox) = registry.boxes.get(&handle) {
+        let pending = mailbox.pending.load(Ordering::SeqCst);
+        let closed = mailbox.closed.load(Ordering::SeqCst);
+        Ok(Value::Tuple(vec![
+            Value::Int(BigInt::from(pending)),
+            Value::Bool(closed),
+        ]))
+    } else {
+        Ok(Value::Tuple(vec![
+            Value::Int(BigInt::from(0)),
+            Value::Bool(true),
+        ]))
+    }
 }
 
 fn spawn_sum(value: Value) -> Result<thread::JoinHandle<Value>, ApexError> {
@@ -389,10 +597,19 @@ fn expect_mailbox_handle(args: &[Value], index: usize, name: &str) -> Result<u64
             name
         )));
     }
-    match &tuple[0] {
-        Value::Int(value) => value
+    mailbox_handle_from_value(&tuple[0], name)
+}
+
+fn mailbox_handle_from_value(value: &Value, name: &str) -> Result<u64, ApexError> {
+    match value {
+        Value::Int(raw) => raw
             .to_u64()
             .ok_or_else(|| ApexError::new(format!("{} handle is too large", name))),
+        Value::Tuple(values) if values.len() == 1 => mailbox_handle_from_value(&values[0], name),
+        Value::Tuple(_) => Err(ApexError::new(format!(
+            "{} expects a tuple containing a numeric mailbox handle",
+            name
+        ))),
         _ => Err(ApexError::new(format!(
             "{} expects a numeric mailbox handle",
             name
@@ -424,6 +641,37 @@ fn get_mailbox_view(handle: u64) -> Result<MailboxView, ApexError> {
         .ok_or_else(|| ApexError::new("Unknown mailbox handle"))
 }
 
+fn drain_mailbox_values(view: &MailboxView) -> Result<Vec<Value>, ApexError> {
+    let guard = view
+        .receiver
+        .lock()
+        .map_err(|_| ApexError::new("Mailbox receiver lock poisoned"))?;
+    let mut drained = Vec::new();
+    loop {
+        match guard.try_recv() {
+            Ok(value) => {
+                view.pending.fetch_sub(1, Ordering::SeqCst);
+                drained.push(value);
+            }
+            Err(TryRecvError::Empty) => break,
+            Err(TryRecvError::Disconnected) => break,
+        }
+    }
+    Ok(drained)
+}
+
+fn close_mailbox_entry(handle: u64) -> Result<bool, ApexError> {
+    let mut registry = MAILBOXES
+        .lock()
+        .map_err(|_| ApexError::new("Mailbox registry lock poisoned"))?;
+    if let Some(entry) = registry.boxes.remove(&handle) {
+        entry.closed.store(true, Ordering::SeqCst);
+        Ok(true)
+    } else {
+        Ok(false)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -436,6 +684,31 @@ mod tests {
         let pending = pending_tasks(&[]).unwrap();
         assert_eq!(pending, Value::Int(0.into()));
         yield_now(&[]).unwrap();
+    }
+
+    #[test]
+    fn join_all_collects_results() {
+        let first = spawn_task(&[Value::String("sum".into()), Value::Int(4.into())]).unwrap();
+        let second =
+            spawn_task(&[Value::String("factorial".into()), Value::Int(4.into())]).unwrap();
+        let combined = join_all(&[first, second]).expect("join_all");
+        if let Value::Tuple(values) = combined {
+            assert_eq!(values.len(), 2);
+            assert_eq!(values[0], Value::Int(10.into()));
+            assert_eq!(values[1], Value::Int(24.into()));
+        } else {
+            panic!("expected tuple");
+        }
+    }
+
+    #[test]
+    fn cancel_detaches_background_tasks() {
+        let handle = spawn_task(&[Value::String("sleep_ms".into()), Value::Int(5.into())]).unwrap();
+        let cancelled = cancel_task(&[handle.clone()]).expect("cancel");
+        assert_eq!(cancelled, Value::Bool(true));
+        // Second cancel reports false because the handle is gone.
+        let again = cancel_task(&[handle]).expect("cancel twice");
+        assert_eq!(again, Value::Bool(false));
     }
 
     #[test]
@@ -496,5 +769,91 @@ mod tests {
         let open = mailbox_is_closed(&[handle.clone()]).expect("open");
         assert_eq!(open, Value::Bool(false));
         assert_eq!(mailbox_close(&[handle]).unwrap(), Value::Bool(true));
+    }
+
+    #[test]
+    fn mailbox_forward_moves_messages() {
+        let source = mailbox_create(&[]).expect("source");
+        let dest = mailbox_create(&[]).expect("dest");
+        mailbox_send(&[source.clone(), Value::Int(1.into())]).unwrap();
+        mailbox_send(&[source.clone(), Value::Int(2.into())]).unwrap();
+        let moved = mailbox_forward(&[source.clone(), dest.clone()]).expect("forward");
+        assert_eq!(moved, Value::Int(2.into()));
+        assert_eq!(
+            mailbox_len(&[source.clone()]).unwrap(),
+            Value::Int(0.into())
+        );
+        assert_eq!(mailbox_len(&[dest.clone()]).unwrap(), Value::Int(2.into()));
+        let drained = mailbox_drain(&[dest.clone()]).expect("drain dest");
+        if let Value::Tuple(values) = drained {
+            assert_eq!(values.len(), 2);
+        } else {
+            panic!("expected tuple");
+        }
+        mailbox_close(&[source]).unwrap();
+        mailbox_close(&[dest]).unwrap();
+    }
+
+    #[test]
+    fn mailbox_batch_and_flush() {
+        let handle = mailbox_create(&[]).expect("mailbox");
+        mailbox_send(&[handle.clone(), Value::Int(1.into())]).unwrap();
+        mailbox_send(&[handle.clone(), Value::Int(2.into())]).unwrap();
+        mailbox_send(&[handle.clone(), Value::Int(3.into())]).unwrap();
+        let batch = mailbox_recv_batch(&[handle.clone(), Value::Int(2.into())]).unwrap();
+        if let Value::Tuple(values) = &batch {
+            assert_eq!(values.len(), 2);
+        } else {
+            panic!("expected batch tuple");
+        }
+        mailbox_send(&[handle.clone(), Value::Int(4.into())]).unwrap();
+        let flushed = mailbox_flush(&[handle.clone()]).unwrap();
+        if let Value::Tuple(parts) = flushed {
+            assert_eq!(parts.len(), 2);
+            assert_eq!(parts[1], Value::Bool(true));
+        } else {
+            panic!("expected flush tuple");
+        }
+    }
+
+    #[test]
+    fn mailbox_stats_report_pending_and_closed() {
+        let handle = mailbox_create(&[]).expect("mailbox");
+        mailbox_send(&[handle.clone(), Value::Int(7.into())]).unwrap();
+        let stats = mailbox_stats(&[handle.clone()]).expect("stats");
+        if let Value::Tuple(values) = stats {
+            assert_eq!(values.len(), 2);
+            assert_eq!(values[0], Value::Int(1.into()));
+            assert_eq!(values[1], Value::Bool(false));
+        } else {
+            panic!("expected stats tuple");
+        }
+        mailbox_close(&[handle.clone()]).unwrap();
+        let stats_after = mailbox_stats(&[handle.clone()]).expect("stats closed");
+        if let Value::Tuple(values) = stats_after {
+            assert_eq!(values[1], Value::Bool(true));
+        } else {
+            panic!("expected stats tuple");
+        }
+    }
+
+    #[test]
+    fn mailbox_send_batch_and_recv_any() {
+        let left = mailbox_create(&[]).expect("left");
+        let right = mailbox_create(&[]).expect("right");
+        let payloads = Value::Tuple(vec![Value::Int(5.into()), Value::Int(6.into())]);
+        let sent = mailbox_send_batch(&[right.clone(), payloads]).expect("batch");
+        assert_eq!(sent, Value::Int(2.into()));
+        mailbox_send(&[left.clone(), Value::Int(99.into())]).expect("send single");
+        let winner = mailbox_recv_any(&[left.clone(), right.clone()]).expect("recv any");
+        if let Value::Tuple(values) = winner {
+            assert_eq!(values.len(), 2);
+            // The first entry contains the handle tuple.
+            assert!(matches!(&values[0], Value::Tuple(items) if !items.is_empty()));
+        } else {
+            panic!("expected select tuple");
+        }
+        mailbox_close(&[left]).unwrap();
+        mailbox_close(&[right]).unwrap();
     }
 }

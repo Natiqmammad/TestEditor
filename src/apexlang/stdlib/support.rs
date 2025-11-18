@@ -48,6 +48,17 @@ pub fn expect_u64_arg(args: &[Value], index: usize, name: &str) -> Result<u64, A
     })
 }
 
+pub fn expect_u128_arg(args: &[Value], index: usize, name: &str) -> Result<u128, ApexError> {
+    let value = expect_int_arg(args, index, name)?;
+    value.to_u128().ok_or_else(|| {
+        ApexError::new(format!(
+            "{} argument at position {} is too large for u128",
+            name,
+            index + 1
+        ))
+    })
+}
+
 pub fn expect_bool_arg(args: &[Value], index: usize, name: &str) -> Result<bool, ApexError> {
     match args.get(index) {
         Some(Value::Bool(value)) => Ok(*value),
@@ -75,6 +86,24 @@ pub fn expect_tuple_arg(args: &[Value], index: usize, name: &str) -> Result<Vec<
         Some(Value::Tuple(values)) => Ok(values.clone()),
         _ => Err(ApexError::new(format!(
             "{} expects a tuple argument at position {}",
+            name,
+            index + 1
+        ))),
+    }
+}
+
+pub fn expect_number_arg(args: &[Value], index: usize, name: &str) -> Result<f64, ApexError> {
+    match args.get(index) {
+        Some(Value::Number(value)) => Ok(*value),
+        Some(Value::Int(value)) => value.to_f64().ok_or_else(|| {
+            ApexError::new(format!(
+                "{} argument at position {} is too large for f64",
+                name,
+                index + 1
+            ))
+        }),
+        _ => Err(ApexError::new(format!(
+            "{} expects a numeric argument at position {}",
             name,
             index + 1
         ))),

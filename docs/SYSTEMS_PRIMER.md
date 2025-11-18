@@ -21,11 +21,14 @@ The `mem` module exposes byte buffers, smart-pointer handles, tuple indexing, bl
 | --- | --- |
 | `mem.alloc_bytes(len)` / `mem.free_bytes(ptr)` | Allocate zeroed buffers and reclaim them when finished. Pointers are `(handle, offset)` tuples. |
 | `mem.pointer_offset(ptr, delta)` / `mem.buffer_len(ptr)` | Move pointers safely within buffer bounds and query the backing length. |
+| `mem.pointer_diff(a, b)` | Compute the signed offset between two pointers into the same buffer—handy for bounds assertions. |
 | `mem.write_byte(ptr, value)` / `mem.read_byte(ptr)` | Store or load individual bytes (0–255) at the pointed-to offset. |
 | `mem.memset(ptr, value, len)` / `mem.memcpy(dst, src, len)` | Bulk-fill regions or copy bytes between buffers without manual loops. |
 | `mem.write_block(ptr, tuple)` / `mem.read_block(ptr, len)` / `mem.checksum(ptr, len)` / `mem.find_byte(ptr, byte)` / `mem.compare(a, b, len)` | Operate on byte ranges at once: write tuples of bytes, read them back, compute checksums, locate byte values, and compare regions lexicographically. |
+| `mem.find_pattern(ptr, tuple)` / `mem.hexdump(ptr, len)` | Search for multi-byte patterns and emit formatted hex dumps of buffer slices. |
 | `mem.swap_ranges(a, b, len)` / `mem.reverse_block(ptr, len)` | Swap or reverse byte ranges without manual loops. |
 | `mem.fill_pattern(ptr, tuple, repeats)` / `mem.count_byte(ptr, len, byte)` | Repeat arbitrary byte patterns across a buffer or count occurrences of a given byte. |
+| `mem.read_u16_le/read_u32_le/read_u64_le` / `mem.write_u16_le/...` | Treat multi-byte regions as little-endian words for structured loads/stores. Big-endian variants, 128-bit helpers, and `read_f32_*`/`read_f64_*` companions round out cross-platform parsing. |
 | `mem.smart_pointer_new(value)` / `mem.smart_pointer_get` / `mem.smart_pointer_set` | Store arbitrary interpreter values in a shared table and retrieve or mutate them later. |
 | `mem.binary_and/or/xor/not`, `mem.binary_shift_left/right`, `mem.binary_rotate_left/right` | Perform bitwise arithmetic or rotations on BigInts. |
 | `mem.bit_test/set/clear/toggle`, `mem.bit_count` | Inspect and manipulate individual bit positions or count set bits. |
@@ -62,10 +65,12 @@ A thin task runtime spins up background threads for a handful of numeric jobs.
 | Function | Task |
 | --- | --- |
 | `async.spawn(kind, payload)` | Start `sum`, `factorial`, `prime_count`, `fibonacci`, or `sleep_ms` jobs. Returns a task handle. |
-| `async.join(handle)` | Block until the task completes and return its result value. |
+| `async.join(handle)` / `async.cancel(handle)` | Block until the task completes or detach the worker thread. |
 | `async.pending()` | Count outstanding tasks. |
 | `async.yield_now()` / `async.sleep_ms(ms)` | Hint to the OS scheduler or block the current thread for `ms` milliseconds. |
-| `async.mailbox_create/send/recv/try_recv/drain/len/recv_timeout/is_closed/close` | Create thread-safe channels for passing `Value`s between ApexLang code and background workers, inspect pending messages, set receive timeouts, and dispose of them deterministically. |
+| `async.mailbox_create/send/send_batch/recv/recv_any/recv_batch/try_recv/drain/len/recv_timeout/forward/flush/is_closed/close/stats` | Create thread-safe channels for passing `Value`s between ApexLang code and background workers, batch/forward messages, select across multiple mailboxes, set receive timeouts, introspect pending/closed status, and dispose of them deterministically. |
+
+`async.join_all(handle1, handle2, …)` waits for multiple tasks and returns a tuple of their results, making it easy to fan in computations without serial joins. `async.mailbox_send_batch(handle, (a, b, …))` pushes several values without repeated host crossings, `async.mailbox_recv_any(handle_a, handle_b, …)` returns the first mailbox to yield data, and `async.mailbox_forward(src, dst)` drains one mailbox into another when you want to stage messages across worker pools.
 
 ```apex
 let handle = async.spawn("prime_count", 100000);
@@ -85,13 +90,18 @@ The `fs` module covers text/binary IO and directory management, while `os` repor
 | Filesystem helper | Description |
 | --- | --- |
 | `fs.read_text(path)` / `write_text(path, text)` / `append_text(path, text)` | Basic UTF-8 IO. |
+| `fs.read_lines(path)` / `fs.write_lines(path, line1, …)` | Line-oriented helpers when newline-delimited text is more convenient than raw buffers. |
 | `fs.file_exists(path)` | Check for path existence. |
-| `fs.read_bytes(path)` / `write_bytes(path, tuple)` | Treat files as raw byte sequences using tuples of integers. |
+| `fs.read_bytes(path)` / `fs.write_bytes(path, tuple)` | Treat files as raw byte sequences using tuples of integers. |
 | `fs.list_dir(path)` / `fs.delete(path)` | Enumerate directory entries or remove files/directories. |
-| `fs.copy(src, dst)` / `fs.rename(src, dst)` | Copy or move files atomically. |
+| `fs.copy(src, dst)` / `fs.copy_dir(src, dst)` / `fs.rename(src, dst)` | Copy files or entire directory trees (recursively) and rename in place. |
 | `fs.mkdir_all(path)` / `fs.metadata(path)` | Create directory trees and inspect `(size, is_file, is_dir)` tuples. |
+| `fs.dir_size(path)` / `fs.file_size(path)` | Recursively sum directory trees or query single-file sizes. |
 | `fs.touch(path)` / `fs.tempfile(prefix?)` | Update or create files in place and produce unique temp-paths for scratch data. |
-| `fs.read_tree(path)` | Walk an entire directory tree and return relative entries (with `"."` for the root). |
+| `fs.read_tree(path)` / `fs.walk_files(path)` | Walk entire directory trees and return relative entries (with `"."` for the root) or file-only listings. |
+| `fs.path_components(path)` / `fs.path_join(a, b, …)` / `fs.relative_path(base, target)` | Split paths into components, join segments safely, or compute relative paths without manual string slicing. |
+| `fs.symlink_target(path)` / `fs.canonicalize(path)` | Resolve symlink targets or canonicalize paths without following through non-links. |
+| `fs.is_file(path)` / `fs.is_dir(path)` | Quickly test path types without digging into metadata tuples. |
 
 | OS helper | Description |
 | --- | --- |
@@ -102,8 +112,8 @@ The `fs` module covers text/binary IO and directory management, while `os` repor
 
 ## Processes, networking, and signals
 
-- `proc.run(command, ...)` executes a binary with optional string arguments. It returns `(exit_code, stdout, stderr)` so you can inspect each channel via `mem.tuple_get`, `proc.which(binary)` reports whether a program is discoverable on the active `PATH`, and the environment helpers (`proc.env_get/env_set/env_list`), argument mirror (`proc.args`), and directory controls (`proc.cwd`, `proc.set_cwd`) keep ApexLang in sync with host state.
-- `net.resolve_host(host)` collects the resolved IPs for a hostname, `net.parse_ipv4(addr)` validates dotted quads, `net.subnet_mask(prefix)` emits CIDR masks, `net.ipv4_network/ipv4_broadcast` compute network bounds, `net.cidr_contains(cidr, addr)` flags whether an address lives inside a subnet, and the IPv4 classifiers/converters (`net.is_private_ipv4`, `net.is_loopback`, `net.ipv4_class`, `net.ipv4_to_int`, `net.int_to_ipv4`) make it easy to reason about address ranges.
+- `proc.run(command, ...)` executes a binary with optional string arguments. It returns `(exit_code, stdout, stderr)` so you can inspect each channel via `mem.tuple_get`, `proc.which(binary)` reports whether a program is discoverable on the active `PATH`, the environment helpers (`proc.env_get/env_set/env_remove/env_list`), argument mirror (`proc.args`), directory controls (`proc.cwd`, `proc.set_cwd`), and path helpers (`proc.temp_dir`, `proc.home_dir`) keep ApexLang in sync with host state, `proc.pid/ppid/hostname/username` expose runtime identity without shelling out, and `proc.uuid_v4` / `proc.exe_path` surface host identifiers without bespoke shims.
+- `net.resolve_host(host)` collects the resolved IPs for a hostname, `net.parse_ipv4(addr)` validates dotted quads, `net.subnet_mask(prefix)` emits CIDR masks, `net.mask_to_prefix(mask)` reverses dotted masks, `net.ipv4_network/ipv4_broadcast/ipv4_range/ipv4_same_subnet` compute network bounds, `net.cidr_contains(cidr, addr)` and `net.cidr_overlap(a, b)` flag whether an address lives inside or intersects a subnet, and the IPv4 classifiers/converters (`net.is_private_ipv4`, `net.is_loopback`, `net.is_multicast`, `net.is_link_local`, `net.ipv4_class`, `net.ipv4_to_int`, `net.int_to_ipv4`, `net.ipv4_to_binary`) plus adjacency helpers (`net.ipv4_next`, `net.ipv4_prev`), host counters (`net.ipv4_host_count`), PTR builders (`net.reverse_ptr`), supernet summarizers (`net.ipv4_supernet`), and CIDR splitters (`net.cidr_split`) make it easy to reason about address ranges.
 - `signal.register(name)`, `signal.emit(name)`, `signal.count(name)`, `signal.tracked()`, and `signal.reset(name)` keep tabs on synthetic signal events—handy for modeling schedulers or debouncing application-level events without touching OS signals.
 
 ## Putting it together

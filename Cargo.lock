@@ -9,6 +9,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "clap",
+ "libc",
  "logos",
  "num-bigint",
  "num-complex",
