@@ -1,5 +1,5 @@
 //! Collections library for AFNS
-//! 
+//!
 //! This module provides comprehensive collection types including:
 //! - Array: Dynamic array with type safety
 //! - Map: Key-value mapping with various key types
@@ -10,11 +10,11 @@
 //! - RingBuffer: Circular buffer with fixed capacity
 //! - CircularBuffer: Alias for RingBuffer
 
-use std::collections::{HashMap, HashSet, VecDeque, LinkedList as StdLinkedList};
-use std::collections::vec_deque::Iter as VecDequeIter;
-use std::collections::linked_list::Iter as LinkedListIter;
 use std::collections::hash_map::Iter as HashMapIter;
 use std::collections::hash_set::Iter as HashSetIter;
+use std::collections::linked_list::Iter as LinkedListIter;
+use std::collections::vec_deque::Iter as VecDequeIter;
+use std::collections::{HashMap, HashSet, LinkedList as StdLinkedList, VecDeque};
 use std::fmt;
 use std::ops::{Index, IndexMut};
 
@@ -32,7 +32,9 @@ impl<T> AFNSArray<T> {
 
     /// Create a new array with specified capacity
     pub fn with_capacity(capacity: usize) -> Self {
-        Self { data: Vec::with_capacity(capacity) }
+        Self {
+            data: Vec::with_capacity(capacity),
+        }
     }
 
     /// Create a new array with initial values
@@ -78,7 +80,11 @@ impl<T> AFNSArray<T> {
     /// Insert an element at the specified index
     pub fn insert(&mut self, index: usize, value: T) -> Result<(), String> {
         if index > self.data.len() {
-            return Err(format!("Index {} out of bounds for array of length {}", index, self.data.len()));
+            return Err(format!(
+                "Index {} out of bounds for array of length {}",
+                index,
+                self.data.len()
+            ));
         }
         self.data.insert(index, value);
         Ok(())
@@ -87,7 +93,11 @@ impl<T> AFNSArray<T> {
     /// Remove an element at the specified index
     pub fn remove(&mut self, index: usize) -> Result<T, String> {
         if index >= self.data.len() {
-            return Err(format!("Index {} out of bounds for array of length {}", index, self.data.len()));
+            return Err(format!(
+                "Index {} out of bounds for array of length {}",
+                index,
+                self.data.len()
+            ));
         }
         Ok(self.data.remove(index))
     }
@@ -123,9 +133,9 @@ impl<T> AFNSArray<T> {
     }
 
     /// Sort the array in place
-    pub fn sort(&mut self) 
-    where 
-        T: Ord 
+    pub fn sort(&mut self)
+    where
+        T: Ord,
     {
         self.data.sort();
     }
@@ -220,12 +230,16 @@ where
 {
     /// Create a new empty map
     pub fn new() -> Self {
-        Self { data: HashMap::new() }
+        Self {
+            data: HashMap::new(),
+        }
     }
 
     /// Create a new map with specified capacity
     pub fn with_capacity(capacity: usize) -> Self {
-        Self { data: HashMap::with_capacity(capacity) }
+        Self {
+            data: HashMap::with_capacity(capacity),
+        }
     }
 
     /// Get the number of key-value pairs
@@ -321,12 +335,16 @@ where
 {
     /// Create a new empty set
     pub fn new() -> Self {
-        Self { data: HashSet::new() }
+        Self {
+            data: HashSet::new(),
+        }
     }
 
     /// Create a new set with specified capacity
     pub fn with_capacity(capacity: usize) -> Self {
-        Self { data: HashSet::with_capacity(capacity) }
+        Self {
+            data: HashSet::with_capacity(capacity),
+        }
     }
 
     /// Get the number of elements
@@ -381,22 +399,34 @@ where
 
     /// Union with another set
     pub fn union(&self, other: &AFNSSet<T>) -> AFNSSet<T> {
-        Self { data: self.data.union(&other.data).cloned().collect() }
+        Self {
+            data: self.data.union(&other.data).cloned().collect(),
+        }
     }
 
     /// Intersection with another set
     pub fn intersection(&self, other: &AFNSSet<T>) -> AFNSSet<T> {
-        Self { data: self.data.intersection(&other.data).cloned().collect() }
+        Self {
+            data: self.data.intersection(&other.data).cloned().collect(),
+        }
     }
 
     /// Difference with another set
     pub fn difference(&self, other: &AFNSSet<T>) -> AFNSSet<T> {
-        Self { data: self.data.difference(&other.data).cloned().collect() }
+        Self {
+            data: self.data.difference(&other.data).cloned().collect(),
+        }
     }
 
     /// Symmetric difference with another set
     pub fn symmetric_difference(&self, other: &AFNSSet<T>) -> AFNSSet<T> {
-        Self { data: self.data.symmetric_difference(&other.data).cloned().collect() }
+        Self {
+            data: self
+                .data
+                .symmetric_difference(&other.data)
+                .cloned()
+                .collect(),
+        }
     }
 
     /// Check if this set is a subset of another set
@@ -424,12 +454,16 @@ pub struct AFNSQueue<T> {
 impl<T> AFNSQueue<T> {
     /// Create a new empty queue
     pub fn new() -> Self {
-        Self { data: VecDeque::new() }
+        Self {
+            data: VecDeque::new(),
+        }
     }
 
     /// Create a new queue with specified capacity
     pub fn with_capacity(capacity: usize) -> Self {
-        Self { data: VecDeque::with_capacity(capacity) }
+        Self {
+            data: VecDeque::with_capacity(capacity),
+        }
     }
 
     /// Get the number of elements
@@ -517,7 +551,9 @@ impl<T> AFNSStack<T> {
 
     /// Create a new stack with specified capacity
     pub fn with_capacity(capacity: usize) -> Self {
-        Self { data: Vec::with_capacity(capacity) }
+        Self {
+            data: Vec::with_capacity(capacity),
+        }
     }
 
     /// Get the number of elements
@@ -590,7 +626,9 @@ pub struct AFNSLinkedList<T> {
 impl<T> AFNSLinkedList<T> {
     /// Create a new empty linked list
     pub fn new() -> Self {
-        Self { data: Box::new(StdLinkedList::new()) }
+        Self {
+            data: Box::new(StdLinkedList::new()),
+        }
     }
 
     /// Get the number of elements
@@ -660,7 +698,9 @@ impl<T> AFNSLinkedList<T> {
 
     /// Split the list at the given index
     pub fn split_off(&mut self, at: usize) -> AFNSLinkedList<T> {
-        Self { data: Box::new(self.data.split_off(at)) }
+        Self {
+            data: Box::new(self.data.split_off(at)),
+        }
     }
 
     /// Append another list to this one
@@ -716,7 +756,7 @@ impl<T> AFNSRingBuffer<T> {
         if self.is_full() {
             return Err("Ring buffer is full".to_string());
         }
-        
+
         self.data[self.tail] = Some(value);
         self.tail = (self.tail + 1) % self.capacity;
         self.len += 1;
@@ -728,8 +768,12 @@ impl<T> AFNSRingBuffer<T> {
         if self.is_full() {
             return Err("Ring buffer is full".to_string());
         }
-        
-        self.head = if self.head == 0 { self.capacity - 1 } else { self.head - 1 };
+
+        self.head = if self.head == 0 {
+            self.capacity - 1
+        } else {
+            self.head - 1
+        };
         self.data[self.head] = Some(value);
         self.len += 1;
         Ok(())
@@ -740,8 +784,12 @@ impl<T> AFNSRingBuffer<T> {
         if self.is_empty() {
             return None;
         }
-        
-        self.tail = if self.tail == 0 { self.capacity - 1 } else { self.tail - 1 };
+
+        self.tail = if self.tail == 0 {
+            self.capacity - 1
+        } else {
+            self.tail - 1
+        };
         let value = self.data[self.tail].take();
         self.len -= 1;
         value
@@ -752,7 +800,7 @@ impl<T> AFNSRingBuffer<T> {
         if self.is_empty() {
             return None;
         }
-        
+
         let value = self.data[self.head].take();
         self.head = (self.head + 1) % self.capacity;
         self.len -= 1;
@@ -772,7 +820,11 @@ impl<T> AFNSRingBuffer<T> {
         if self.is_empty() {
             return None;
         }
-        let back_index = if self.tail == 0 { self.capacity - 1 } else { self.tail - 1 };
+        let back_index = if self.tail == 0 {
+            self.capacity - 1
+        } else {
+            self.tail - 1
+        };
         self.data[back_index].as_ref()
     }
 

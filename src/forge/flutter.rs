@@ -79,7 +79,10 @@ impl FlutterWindow {
     pub fn resize(&mut self, width: i32, height: i32) {
         self.width = width;
         self.height = height;
-        println!("🎯 Flutter Window '{}' resized to {}x{}", self.title, width, height);
+        println!(
+            "🎯 Flutter Window '{}' resized to {}x{}",
+            self.title, width, height
+        );
     }
 
     pub fn to_afns_code(&self) -> String {
@@ -152,7 +155,10 @@ impl FlutterTextField {
             self.value = value;
             println!("🔄 Flutter TextField '{}' value updated", self.placeholder);
         } else {
-            println!("❌ Flutter TextField value too long (max: {})", self.max_length);
+            println!(
+                "❌ Flutter TextField value too long (max: {})",
+                self.max_length
+            );
         }
     }
 
@@ -205,7 +211,10 @@ impl FlutterListBox {
                     self.selected_index = None;
                 }
             }
-            println!("➖ Flutter ListBox '{}' item removed at index {}", self.id, index);
+            println!(
+                "➖ Flutter ListBox '{}' item removed at index {}",
+                self.id, index
+            );
             Ok(removed_item)
         } else {
             Err(format!("Index {} out of bounds", index))
@@ -216,7 +225,10 @@ impl FlutterListBox {
         if index < self.items.len() {
             self.selected_index = Some(index);
             let selected_item = self.items[index].clone();
-            println!("🎯 Flutter ListBox '{}' item selected: {}", self.id, selected_item);
+            println!(
+                "🎯 Flutter ListBox '{}' item selected: {}",
+                self.id, selected_item
+            );
             Ok(selected_item)
         } else {
             Err(format!("Index {} out of bounds", index))
@@ -234,11 +246,13 @@ impl FlutterListBox {
     }
 
     pub fn to_afns_code(&self) -> String {
-        let items_str = self.items.iter()
+        let items_str = self
+            .items
+            .iter()
             .map(|item| format!("\"{}\"", item))
             .collect::<Vec<_>>()
             .join(", ");
-        
+
         let selected_str = match self.selected_index {
             Some(index) => index.to_string(),
             None => "null".to_string(),
@@ -309,7 +323,13 @@ impl AFNSFlutterManager {
     }
 
     // 🎨 WINDOW MANAGEMENT
-    pub fn create_window(&mut self, id: String, title: String, width: i32, height: i32) -> Result<String, String> {
+    pub fn create_window(
+        &mut self,
+        id: String,
+        title: String,
+        width: i32,
+        height: i32,
+    ) -> Result<String, String> {
         if self.windows.contains_key(&id) {
             return Err(format!("Window with id '{}' already exists", id));
         }
@@ -317,7 +337,7 @@ impl AFNSFlutterManager {
         let window = FlutterWindow::new(id.clone(), title.clone(), width, height);
         self.windows.insert(id.clone(), window);
         self.ui_state = format!("Window '{}' created", id);
-        
+
         println!("✅ Flutter Window created: {} ({})", title, id);
         Ok(format!("FlutterWindow '{}' created successfully", id))
     }
@@ -340,7 +360,13 @@ impl AFNSFlutterManager {
     }
 
     // 🔘 BUTTON MANAGEMENT
-    pub fn create_button(&mut self, id: String, text: String, x: i32, y: i32) -> Result<String, String> {
+    pub fn create_button(
+        &mut self,
+        id: String,
+        text: String,
+        x: i32,
+        y: i32,
+    ) -> Result<String, String> {
         if self.buttons.contains_key(&id) {
             return Err(format!("Button with id '{}' already exists", id));
         }
@@ -348,7 +374,7 @@ impl AFNSFlutterManager {
         let button = FlutterButton::new(id.clone(), text.clone(), x, y);
         self.buttons.insert(id.clone(), button);
         self.ui_state = format!("Button '{}' created", id);
-        
+
         println!("✅ Flutter Button created: {} ({})", text, id);
         Ok(format!("FlutterButton '{}' created successfully", id))
     }
@@ -376,7 +402,14 @@ impl AFNSFlutterManager {
     }
 
     // 📝 TEXT FIELD MANAGEMENT
-    pub fn create_text_field(&mut self, id: String, placeholder: String, x: i32, y: i32, width: i32) -> Result<String, String> {
+    pub fn create_text_field(
+        &mut self,
+        id: String,
+        placeholder: String,
+        x: i32,
+        y: i32,
+        width: i32,
+    ) -> Result<String, String> {
         if self.text_fields.contains_key(&id) {
             return Err(format!("TextField with id '{}' already exists", id));
         }
@@ -384,7 +417,7 @@ impl AFNSFlutterManager {
         let text_field = FlutterTextField::new(id.clone(), placeholder.clone(), x, y, width);
         self.text_fields.insert(id.clone(), text_field);
         self.ui_state = format!("TextField '{}' created", id);
-        
+
         println!("✅ Flutter TextField created: {} ({})", placeholder, id);
         Ok(format!("FlutterTextField '{}' created successfully", id))
     }
@@ -417,7 +450,10 @@ impl AFNSFlutterManager {
 
     pub fn destroy_text_field(&mut self, id: &str) -> Result<String, String> {
         if let Some(text_field) = self.text_fields.remove(id) {
-            println!("🗑️ Flutter TextField '{}' destroyed", text_field.placeholder);
+            println!(
+                "🗑️ Flutter TextField '{}' destroyed",
+                text_field.placeholder
+            );
             Ok(format!("TextField '{}' destroyed", id))
         } else {
             Err(format!("TextField '{}' not found", id))
@@ -425,7 +461,14 @@ impl AFNSFlutterManager {
     }
 
     // 📋 LIST BOX MANAGEMENT
-    pub fn create_list_box(&mut self, id: String, x: i32, y: i32, width: i32, height: i32) -> Result<String, String> {
+    pub fn create_list_box(
+        &mut self,
+        id: String,
+        x: i32,
+        y: i32,
+        width: i32,
+        height: i32,
+    ) -> Result<String, String> {
         if self.list_boxes.contains_key(&id) {
             return Err(format!("ListBox with id '{}' already exists", id));
         }
@@ -433,7 +476,7 @@ impl AFNSFlutterManager {
         let list_box = FlutterListBox::new(id.clone(), x, y, width, height);
         self.list_boxes.insert(id.clone(), list_box);
         self.ui_state = format!("ListBox '{}' created", id);
-        
+
         println!("✅ Flutter ListBox created: {} at ({}, {})", id, x, y);
         Ok(format!("FlutterListBox '{}' created successfully", id))
     }
@@ -465,7 +508,11 @@ impl AFNSFlutterManager {
 
     pub fn destroy_list_box(&mut self, id: &str) -> Result<String, String> {
         if let Some(list_box) = self.list_boxes.remove(id) {
-            println!("🗑️ Flutter ListBox '{}' destroyed with {} items", id, list_box.items.len());
+            println!(
+                "🗑️ Flutter ListBox '{}' destroyed with {} items",
+                id,
+                list_box.items.len()
+            );
             Ok(format!("ListBox '{}' destroyed", id))
         } else {
             Err(format!("ListBox '{}' not found", id))
@@ -477,7 +524,7 @@ impl AFNSFlutterManager {
         let dialog = FlutterDialog::new(title.clone(), message.clone());
         self.active_dialogs.push(dialog.clone());
         dialog.show();
-        
+
         self.ui_state = format!("Dialog '{}' shown", title);
         Ok(format!("Dialog '{}' shown successfully", title))
     }
@@ -515,43 +562,43 @@ impl AFNSFlutterManager {
 
     pub fn generate_afns_code(&self) -> String {
         let mut code = Vec::new();
-        
+
         code.push("// Generated AFNS Flutter GUI Code".to_string());
         code.push(String::new());
-        
+
         // Generate window code
         for window in self.windows.values() {
             code.push(window.to_afns_code());
         }
-        
+
         code.push(String::new());
-        
+
         // Generate button code
         for button in self.buttons.values() {
             code.push(button.to_afns_code());
         }
-        
+
         code.push(String::new());
-        
+
         // Generate text field code
         for text_field in self.text_fields.values() {
             code.push(text_field.to_afns_code());
         }
-        
+
         code.push(String::new());
-        
+
         // Generate list box code
         for list_box in self.list_boxes.values() {
             code.push(list_box.to_afns_code());
         }
-        
+
         code.push(String::new());
-        
+
         // Generate dialog code
         for dialog in &self.active_dialogs {
             code.push(dialog.to_afns_code());
         }
-        
+
         code.join("\n")
     }
 
@@ -607,12 +654,14 @@ pub fn afns_create_window(id: String, title: String, width: i32, height: i32) ->
     match AFNS_FLUTTER_MANAGER.lock() {
         Ok(guard) => {
             if let Some(ref mut manager) = *guard {
-                manager.create_window(id, title, width, height).unwrap_or_else(|e| e)
+                manager
+                    .create_window(id, title, width, height)
+                    .unwrap_or_else(|e| e)
             } else {
                 initialize_afns_flutter_manager();
                 "AFNS Flutter Manager initialized, please retry".to_string()
             }
-        },
+        }
         Err(_) => "ERROR: Manager lock failed".to_string(),
     }
 }
@@ -626,21 +675,29 @@ pub fn afns_create_button(id: String, text: String, x: i32, y: i32) -> String {
                 initialize_afns_flutter_manager();
                 "AFNS Flutter Manager initialized, please retry".to_string()
             }
-        },
+        }
         Err(_) => "ERROR: Manager lock failed".to_string(),
     }
 }
 
-pub fn afns_create_text_field(id: String, placeholder: String, x: i32, y: i32, width: i32) -> String {
+pub fn afns_create_text_field(
+    id: String,
+    placeholder: String,
+    x: i32,
+    y: i32,
+    width: i32,
+) -> String {
     match AFNS_FLUTTER_MANAGER.lock() {
         Ok(guard) => {
             if let Some(ref mut manager) = *guard {
-                manager.create_text_field(id, placeholder, x, y, width).unwrap_or_else(|e| e)
+                manager
+                    .create_text_field(id, placeholder, x, y, width)
+                    .unwrap_or_else(|e| e)
             } else {
                 initialize_afns_flutter_manager();
                 "AFNS Flutter Manager initialized, please retry".to_string()
             }
-        },
+        }
         Err(_) => "ERROR: Manager lock failed".to_string(),
     }
 }
@@ -649,12 +706,14 @@ pub fn afns_create_list_box(id: String, x: i32, y: i32, width: i32, height: i32)
     match AFNS_FLUTTER_MANAGER.lock() {
         Ok(guard) => {
             if let Some(ref mut manager) = *guard {
-                manager.create_list_box(id, x, y, width, height).unwrap_or_else(|e| e)
+                manager
+                    .create_list_box(id, x, y, width, height)
+                    .unwrap_or_else(|e| e)
             } else {
                 initialize_afns_flutter_manager();
                 "AFNS Flutter Manager initialized, please retry".to_string()
             }
-        },
+        }
         Err(_) => "ERROR: Manager lock failed".to_string(),
     }
 }
@@ -667,7 +726,7 @@ pub fn afns_click_button(id: String) -> String {
             } else {
                 "ERROR: Manager not initialized".to_string()
             }
-        },
+        }
         Err(_) => "ERROR: Manager lock failed".to_string(),
     }
 }
@@ -676,11 +735,13 @@ pub fn afns_set_text_value(id: String, value: String) -> String {
     match AFNS_FLUTTER_MANAGER.lock() {
         Ok(guard) => {
             if let Some(ref mut manager) = *guard {
-                manager.set_text_field_value(&id, value).unwrap_or_else(|e| e)
+                manager
+                    .set_text_field_value(&id, value)
+                    .unwrap_or_else(|e| e)
             } else {
                 "ERROR: Manager not initialized".to_string()
             }
-        },
+        }
         Err(_) => "ERROR: Manager lock failed".to_string(),
     }
 }
@@ -693,7 +754,7 @@ pub fn afns_get_text_value(id: String) -> String {
             } else {
                 "ERROR: Manager not initialized".to_string()
             }
-        },
+        }
         Err(_) => "ERROR: Manager lock failed".to_string(),
     }
 }
@@ -702,11 +763,13 @@ pub fn afns_select_list_item(id: String, index: usize) -> String {
     match AFNS_FLUTTER_MANAGER.lock() {
         Ok(guard) => {
             if let Some(ref mut manager) = *guard {
-                manager.select_list_box_item(&id, index).unwrap_or_else(|e| e)
+                manager
+                    .select_list_box_item(&id, index)
+                    .unwrap_or_else(|e| e)
             } else {
                 "ERROR: Manager not initialized".to_string()
             }
-        },
+        }
         Err(_) => "ERROR: Manager lock failed".to_string(),
     }
 }
@@ -719,7 +782,7 @@ pub fn afns_show_dialog(title: String, message: String) -> String {
             } else {
                 "ERROR: Manager not initialized".to_string()
             }
-        },
+        }
         Err(_) => "ERROR: Manager lock failed".to_string(),
     }
 }
@@ -732,7 +795,7 @@ pub fn afns_get_status() -> String {
             } else {
                 "ERROR: Manager not initialized".to_string()
             }
-        },
+        }
         Err(_) => "ERROR: Manager lock failed".to_string(),
     }
 }
@@ -745,7 +808,7 @@ pub fn afns_generate_code() -> String {
             } else {
                 "ERROR: Manager not initialized".to_string()
             }
-        },
+        }
         Err(_) => "ERROR: Manager lock failed".to_string(),
     }
 }
@@ -758,7 +821,7 @@ pub fn afns_get_performance_metrics() -> String {
             } else {
                 "ERROR: Manager not initialized".to_string()
             }
-        },
+        }
         Err(_) => "ERROR: Manager lock failed".to_string(),
     }
 }
@@ -772,7 +835,7 @@ pub fn afns_clear_all() -> String {
             } else {
                 "ERROR: Manager not initialized".to_string()
             }
-        },
+        }
         Err(_) => "ERROR: Manager lock failed".to_string(),
     }
 }
@@ -781,62 +844,97 @@ pub fn afns_clear_all() -> String {
 
 pub fn afns_demo_workflow() -> String {
     let mut results = Vec::new();
-    
+
     results.push("🚀 AFNS Flutter Demo Workflow".to_string());
     results.push("=============================".to_string());
     results.push(String::new());
-    
+
     // Create main window
-    results.push(afns_create_window("main".to_string(), "AFNS Flutter Demo".to_string(), 800, 600));
-    
+    results.push(afns_create_window(
+        "main".to_string(),
+        "AFNS Flutter Demo".to_string(),
+        800,
+        600,
+    ));
+
     // Create buttons
-    results.push(afns_create_button("btn1".to_string(), "Save".to_string(), 50, 50));
-    results.push(afns_create_button("btn2".to_string(), "Load".to_string(), 150, 50));
-    results.push(afns_create_button("btn3".to_string(), "Run".to_string(), 250, 50));
-    
+    results.push(afns_create_button(
+        "btn1".to_string(),
+        "Save".to_string(),
+        50,
+        50,
+    ));
+    results.push(afns_create_button(
+        "btn2".to_string(),
+        "Load".to_string(),
+        150,
+        50,
+    ));
+    results.push(afns_create_button(
+        "btn3".to_string(),
+        "Run".to_string(),
+        250,
+        50,
+    ));
+
     // Create text fields
     results.push(afns_create_text_field(
         "txt1".to_string(),
         "Project Name".to_string(),
-        50, 100, 200
+        50,
+        100,
+        200,
     ));
     results.push(afns_create_text_field(
         "txt2".to_string(),
         "Author".to_string(),
-        300, 100, 150
+        300,
+        100,
+        150,
     ));
 
     // Create list box
     results.push(afns_create_list_box("list1".to_string(), 50, 150, 400, 200));
-    
+
     // Add items to list box
-    results.push(afns_create_button("btn4".to_string(), "Add Item".to_string(), 50, 370));
-    
+    results.push(afns_create_button(
+        "btn4".to_string(),
+        "Add Item".to_string(),
+        50,
+        370,
+    ));
+
     // Simulate interactions
     results.push(afns_click_button("btn1".to_string()));
-    results.push(afns_set_text_value("txt1".to_string(), "MyAFNSProject".to_string()));
+    results.push(afns_set_text_value(
+        "txt1".to_string(),
+        "MyAFNSProject".to_string(),
+    ));
     results.push(afns_select_list_item("list1".to_string(), 0));
-    
+
     // Show dialog
-    results.push(afns_show_dialog("Success".to_string(), "AFNS Flutter demo completed!".to_string()));
-    
+    results.push(afns_show_dialog(
+        "Success".to_string(),
+        "AFNS Flutter demo completed!".to_string(),
+    ));
+
     // Status and performance
     results.push(String::new());
     results.push(afns_get_status());
     results.push(String::new());
     results.push(afns_get_performance_metrics());
-    
+
     results.push(String::new());
     results.push("🎉 AFNS Flutter Integration Complete!".to_string());
-    
+
     results.join("\n")
 }
 
 pub fn afns_test_flutter_integration() -> String {
     println!("🎯 Testing AFNS Flutter Integration...");
-    
+
     let demo_result = afns_demo_workflow();
     println!("✅ AFNS Flutter integration test completed");
-    
+
     demo_result
 }

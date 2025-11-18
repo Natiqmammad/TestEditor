@@ -10,11 +10,11 @@ In addition to AFNS, the repository now tracks the design of **APEXLANG**, a low
 
 The repository ships with a tiny prototype interpreter that understands the MVP syntax described in the design document. The interpreter now supports BigInt-backed integers, floating-point numbers, booleans, local bindings via `let`/`var`, user-defined helper functions, and a lightweight import system. By importing the built-in `nats` module you can call a rich catalogue of number-theory routines (`gcd`, `sum_digits`, `phi`, `divisors_count`, `modpow`, `is_prime`, …) directly from ApexLang source. Advanced primality helpers—including Fermat and strong pseudoprime predicates, a configurable Miller–Rabin driver, a Carmichael classifier, Wilson-theorem verification, Kaprekar classifications (constant/steps + theorem validation), twin-prime/Sophie Germain/Cunningham detectors, Goldbach-witness utilities, Lucas–Lehmer/Mersenne probes, Euler-totient-theorem and Gauss-sum validators, and Bertrand-postulate witnesses—round out the toolkit for building mathematically intensive programs. Figurate and sequence helpers (`triangular_number`, `pentagonal_number`, `hexagonal_number`, `catalan_number`, `catalan_theorem`, `nicomachus_theorem`, `pell_number`, `pell_lucas_number`, `sylvester_number`, `is_happy`, `happy_steps`, `is_automorphic`, `is_palindromic`, and `pythagorean_triple`) ensure the natural-number playground stays expressive, while theorem validators (`pell_theorem`, `pell_equation`, `sylvester_identity`, and `is_ruth_aaron_pair`) bring classical identities directly into source code. Hardy–Ramanujan taxicab detectors (`ramanujan_pairs`, `is_taxicab_number`), highly composite/perfect totient classifiers, Collatz trackers (`collatz_steps`, `collatz_peak`), lucky-number sieves (`lucky_number`, `is_lucky_number`), Bell-number generators (`bell_number`), and `is_sphenic` expand the arithmetic search space, and the module also exposes natural-number ergonomics such as `abs_value`, localized prime/composite aliases, and Kaprekar theorem checks for 4-digit flows.
 
-The latest refresh also adds semiperfect/weird testers, refactorable predicates, pernicious-bit inspectors, and Smith-number verifiers so digit-centric theorems sit next to divisor lore. Strings are now first-class literals (`"paths/with/escapes"`), so ApexLang programs can pass file names, inline-assembly snippets, and shell commands directly into native helpers without synthetic encodings. To keep the language’s low-level ambitions tangible, the runtime now exposes byte buffers with pointer arithmetic (`memset`, `memcpy`, tuple indexing), smart-pointer tables, advanced bit fiddling (rotations, bit counts, set/clear/toggle/test), inline assembly, concurrency mailboxes, and a grab bag of host-facing libraries for files, OS data, networking, processes, and synthetic signals.
+The latest refresh also adds semiperfect/weird testers, refactorable predicates, pernicious-bit inspectors, and Smith-number verifiers so digit-centric theorems sit next to divisor lore. Strings are now first-class literals (`"paths/with/escapes"`), so ApexLang programs can pass file names, inline-assembly snippets, and shell commands directly into native helpers without synthetic encodings. To keep the language’s low-level ambitions tangible, the runtime now exposes byte buffers with pointer arithmetic (`memset`, `memcpy`, tuple indexing), smart-pointer tables, advanced bit fiddling (rotations, bit counts, set/clear/toggle/test), inline assembly, async mailboxes, and a grab bag of host-facing libraries for files, OS data, networking, processes, and synthetic signals.
 
 For floating-point heavy workloads, the companion `math` module exposes zero-argument constants (`pi()`, `e()`), a numerically stable `abs` helper, and a sweep of analytic primitives: `sqrt`, `cbrt`, `hypot`, `pow`, `exp`, `ln`, `log`, `sin`, `cos`, and `tan`. The interpreter automatically widens integers to doubles so programs can blend `math` and `nats` calls in the same expressions without ceremony.
 
-To keep ordinary and decimal fractions first-class citizens, the `fractions` module layers reduction/add/subtract/multiply/divide helpers on top of numerators and denominators, offers Farey-neighbor and mediant identities, detects terminating versus repeating decimals (`fraction_is_terminating`, `fraction_period_length`), emits greedy Egyptian decompositions, and bridges decimals back to rationals (`decimal_to_fraction`) under a tunable denominator bound. Every helper accepts either raw `(numerator, denominator)` pairs or the tuple returned by a previous fraction call, so ApexLang code can chain fraction algebra the same way it chains natural-number predicates.
+To keep ordinary and decimal fractions first-class citizens, the `fractions` module layers reduction/add/subtract/multiply/divide helpers on top of numerators and denominators, offers Farey-neighbor and mediant identities, detects terminating versus repeating decimals (`fraction_is_terminating`, `fraction_period_length`), emits greedy Egyptian decompositions, and bridges decimals back to rationals (`decimal_to_fraction`) under a tunable denominator bound. Fresh helpers (`fraction_is_reduced`, `fraction_compare`, `fraction_to_mixed`, `fraction_from_mixed`, `fraction_decimal_parts`, `fraction_continued_terms`, `fraction_from_continued`, `fraction_limit_denominator`) turn adi/onluq (ordinary/decimal) theorems into runnable code—normalizing mixed numbers, surfacing repeating blocks, exploring continued fractions, and squeezing rationals into bounded denominators without leaving ApexLang. Every helper accepts either raw `(numerator, denominator)` pairs or the tuple returned by a previous fraction call, so ApexLang code can chain fraction algebra the same way it chains natural-number predicates. A deeper guide covering each trick and example sits in [`docs/FRACTIONS_PLAYBOOK.md`](docs/FRACTIONS_PLAYBOOK.md).
 
 #### Systems programming toolbox
 
@@ -22,12 +22,12 @@ Beyond math, the standard library now includes a focused systems toolkit—docum
 
 | Module | Highlights |
 | --- | --- |
-| `memory` | Byte buffers (`alloc_bytes`, `memset`, `memcpy`), pointer arithmetic (`pointer_offset`, tuple-based handles), smart pointers (`smart_pointer_new/get/set`), bitwise intrinsics (`binary_shift`, `binary_rotate`, `bit_test/set/clear/toggle`, `bit_count`), and `tuple_get` for inspecting tuple results. |
+| `mem` | Byte buffers (`alloc_bytes`, `memset`, `memcpy`), tuple-backed pointers, smart-pointer tables, block helpers (`write_block`, `read_block`, `checksum`, `find_byte`, `compare`), region mutators (`swap_ranges`, `reverse_block`, `fill_pattern`, `count_byte`), bitwise intrinsics, and `tuple_get`. |
 | `asm` | `asm.inline("mov r0, 5; add r0, 7;")` executes a miniature register-based DSL and returns register tuples for further processing. |
-| `concurrency` | Spawn background workers (`concurrency.spawn("sum", 10_000)`), inspect `pending` jobs, `yield_now`, and pass values through thread-safe mailboxes (`mailbox_create/send/recv/try_recv`). |
-| `filesystem` & `os` | Text/binary IO (`read_text`, `write_bytes`), existence checks, directory listings/deletes, and host/environment queries (`os.cwd`, `os.env_var`, `os.pointer_width`, `os.pid`, `os.args`). |
-| `process` | Launch binaries with arbitrary string arguments, retrieve `(exit_code, stdout, stderr)` tuples, and resolve executables via `process.which`. |
-| `network` | Resolve hostnames, validate IPv4 literals, emit CIDR subnet masks, and flag private/reserved IPv4 ranges. |
+| `async` | Spawn background workers (`async.spawn("sum", 10_000)`), inspect `pending` jobs, `yield_now`, `sleep_ms`, and move values through thread-safe mailboxes (`mailbox_create/send/recv/try_recv/drain/len/recv_timeout/close/is_closed`). |
+| `fs` & `os` | Text/binary IO (`read_text`, `write_bytes`), copy/rename/delete helpers, recursive directory creation, metadata probes, file touching (`touch`), unique temp files, recursive directory walks, plus host/environment queries (`os.cwd`, `os.env_var`, `os.pointer_width`, `os.pid`, `os.args`). |
+| `proc` | Launch binaries, retrieve `(exit_code, stdout, stderr)` tuples, resolve executables, query/update environment variables (`env_get`, `env_set`, `env_list`), capture program args, change directories (`set_cwd`), and capture the working directory (`cwd`). |
+| `net` | Resolve hostnames, validate IPv4 literals, emit CIDR subnet masks, test address containment, compute network/broadcast addresses, convert to/from integers, classify address ranges (A–E), and detect loopback networks. |
 | `signal` | Register and emit synthetic signals with `signal.register`, `signal.emit`, `signal.count`, `signal.tracked`, plus `signal.reset` for clearing counters mid-run. |
 
 The primer walks through combined examples showing how to mix the systems modules with the number-theory and math helpers.
@@ -82,6 +82,13 @@ Combine them freely with Fibonacci/Harshad/Armstrong/twin-prime predicates, divi
 | `fractions.fraction_egyptian_terms(a)` | Returns the greedy Egyptian decomposition denominators for proper positive fractions | `Tuple<Int, …>` |
 | `fractions.fraction_to_decimal(a)` / `fractions.decimal_to_fraction(x, max_den)` | Converts rationals to `f64` and clamps decimals back to rationals via continued fractions | `Number` / `Tuple<Int, Int>` |
 | `fractions.fraction_numerator(a)` / `fractions.fraction_denominator(a)` | Extracts components from tuple values so chained computations stay ergonomic | `Int` |
+| `fractions.fraction_is_reduced(a)` / `fractions.fraction_compare(a, b)` | Detects whether numerators/denominators are coprime and returns the comparison ordering (-1/0/1) between two rationals | `Bool` / `Int` |
+| `fractions.fraction_to_mixed(a)` / `fractions.fraction_from_mixed(whole, remainder, den)` | Converts between improper fractions and `(whole, remainder, denominator)` triples so adi (ordinary) mixed-number theorems can execute directly | `Tuple<Int, Int, Int>` / `Tuple<Int, Int>` |
+| `fractions.fraction_decimal_parts(a)` | Reports the integer part, non-repeating prefix, and repeating block of the decimal expansion, making onluq (decimal) proofs tangible | `Tuple<String, String, String>` |
+| `fractions.fraction_continued_terms(a, limit?)` / `fractions.fraction_from_continued(seq)` | Emits continued-fraction terms for any rational (optionally capped) and rebuilds rationals from continued-fraction sequences | `Tuple<Int, …>` / `Tuple<Int, Int>` |
+| `fractions.fraction_limit_denominator(a, max_den)` | Finds the closest rational to `a` whose denominator does not exceed `max_den` (a.k.a. `limit_denominator`) | `Tuple<Int, Int>` |
+
+Refer to [`docs/FRACTIONS_PLAYBOOK.md`](docs/FRACTIONS_PLAYBOOK.md) for narrative explanations, theorem statements, and runnable ApexLang snippets that demonstrate how each helper maps to classic adi/onluq fraction tricks.
 
 ```bash
 cargo run --bin afns -- apex --input examples/apex/demo.apx
@@ -97,12 +104,12 @@ import nats.is_prime as prime;
 import fractions;
 import fractions.decimal_to_fraction as to_fraction;
 import asm;
-import memory;
-import concurrency;
-import filesystem;
+import mem;
+import async;
+import fs;
 import os;
-import network;
-import process;
+import net;
+import proc;
 import signal;
 
 fn weighted_score(value) {
@@ -118,8 +125,8 @@ fn apex() {
     let base = nats.abs_value(signed);
     let enriched = weighted_score(base);
     // ...snip… see examples/apex/demo.apx for the full program that blends
-    // nats/math/fractions helpers with asm, memory, concurrency, filesystem,
-    // os, network, process, and signal utilities.
+    // nats/math/fractions helpers with asm, mem, async, fs,
+    // os, net, proc, and signal utilities.
 }
 ```
 

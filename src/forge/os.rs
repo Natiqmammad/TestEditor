@@ -1,5 +1,5 @@
 //! OS library for AFNS
-//! 
+//!
 //! This module provides operating system interfaces including:
 //! - Process: Process management
 //! - Environment: Environment variables
@@ -9,9 +9,9 @@
 
 use std::env;
 use std::fs;
+use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
-use std::io::{self, Read, Write};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Process management
@@ -45,13 +45,16 @@ impl AFNSProcess {
     /// Set the working directory
     pub fn working_dir(&mut self, dir: String) -> &mut Self {
         self.working_dir = Some(PathBuf::from(dir));
-        self.command.current_dir(&self.working_dir.as_ref().unwrap());
+        self.command
+            .current_dir(&self.working_dir.as_ref().unwrap());
         self
     }
 
     /// Execute the process
     pub fn execute(&mut self) -> Result<AFNSProcessResult, String> {
-        let output = self.command.output()
+        let output = self
+            .command
+            .output()
             .map_err(|e| format!("Failed to execute process: {}", e))?;
 
         Ok(AFNSProcessResult {
@@ -138,14 +141,12 @@ impl AFNSFileSystem {
 
     /// Create a directory
     pub fn create_dir(path: String) -> Result<(), String> {
-        fs::create_dir(&path)
-            .map_err(|e| format!("Failed to create directory: {}", e))
+        fs::create_dir(&path).map_err(|e| format!("Failed to create directory: {}", e))
     }
 
     /// Remove a file
     pub fn remove_file(path: String) -> Result<(), String> {
-        fs::remove_file(&path)
-            .map_err(|e| format!("Failed to remove file: {}", e))
+        fs::remove_file(&path).map_err(|e| format!("Failed to remove file: {}", e))
     }
 }
 

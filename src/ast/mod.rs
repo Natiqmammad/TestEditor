@@ -1,5 +1,5 @@
 //! Abstract Syntax Tree for ApexForge NightScript
-//! 
+//!
 //! This module defines the AST nodes that represent the parsed AFNS source code.
 
 use serde::{Deserialize, Serialize};
@@ -16,7 +16,12 @@ pub struct Span {
 
 impl Span {
     pub fn new(start: usize, end: usize, line: usize, column: usize) -> Self {
-        Self { start, end, line, column }
+        Self {
+            start,
+            end,
+            line,
+            column,
+        }
     }
 }
 
@@ -42,13 +47,13 @@ pub enum Type {
     String,
     Byte,
     Char,
-    
+
     // Math types
     Decimal,
     BigInt,
     Complex,
     Rational,
-    
+
     // Collections
     Array(Box<Type>),
     Map(Box<Type>, Box<Type>), // Map<K, V>
@@ -58,12 +63,12 @@ pub enum Type {
     LinkedList(Box<Type>),
     RingBuffer(Box<Type>),
     CircularBuffer(Box<Type>),
-    
+
     // Struct types
     Tuple(Vec<Type>),
     Option(Box<Type>),
     Result(Box<Type>, Box<Type>), // Result<T, E>
-    
+
     // Special types
     UUID,
     Email,
@@ -72,7 +77,7 @@ pub enum Type {
     MACAddress,
     Date,
     Duration,
-    
+
     // Special AFNS types
     Timeline(Box<Type>),
     Holo(Box<Type>),
@@ -87,18 +92,18 @@ pub enum Type {
     Anchor(Box<Type>),
     CVar(Box<Type>),
     Reactiv(Box<Type>),
-    
+
     // Function types
     Function(Vec<Type>, Box<Type>), // Function(parameters, return_type)
     Closure(Vec<Type>, Box<Type>),
     Actor(Vec<Type>, Box<Type>),
-    
+
     // Generic types
     Generic(String),
-    
+
     // User-defined types
     UserDefined(String),
-    
+
     // Reference types
     Reference(Box<Type>),
     MutableReference(Box<Type>),
@@ -141,7 +146,9 @@ impl fmt::Display for Type {
             Type::Tuple(types) => {
                 write!(f, "(")?;
                 for (i, t) in types.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}", t)?;
                 }
                 write!(f, ")")
@@ -171,7 +178,9 @@ impl fmt::Display for Type {
             Type::Function(params, ret) => {
                 write!(f, "fn(")?;
                 for (i, param) in params.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}", param)?;
                 }
                 write!(f, ") -> {}", ret)
@@ -179,7 +188,9 @@ impl fmt::Display for Type {
             Type::Closure(params, ret) => {
                 write!(f, "closure(")?;
                 for (i, param) in params.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}", param)?;
                 }
                 write!(f, ") -> {}", ret)
@@ -187,7 +198,9 @@ impl fmt::Display for Type {
             Type::Actor(params, ret) => {
                 write!(f, "actor(")?;
                 for (i, param) in params.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}", param)?;
                 }
                 write!(f, ") -> {}", ret)
@@ -513,10 +526,7 @@ pub enum Item {
     Trait(Trait),
     Module(Module),
     Import(String),
-    TypeAlias {
-        name: String,
-        type_: Type,
-    },
+    TypeAlias { name: String, type_: Type },
 }
 
 /// Complete program AST
@@ -533,7 +543,7 @@ impl Program {
             span: Span::new(0, 0, 1, 1),
         }
     }
-    
+
     pub fn add_item(&mut self, item: Item) {
         self.items.push(item);
     }
@@ -548,22 +558,31 @@ impl Default for Program {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_type_display() {
         assert_eq!(format!("{}", Type::I32), "i32");
         assert_eq!(format!("{}", Type::String), "string");
-        assert_eq!(format!("{}", Type::Array(Box::new(Type::I32))), "Array<i32>");
-        assert_eq!(format!("{}", Type::Map(Box::new(Type::String), Box::new(Type::I32))), "Map<string, i32>");
+        assert_eq!(
+            format!("{}", Type::Array(Box::new(Type::I32))),
+            "Array<i32>"
+        );
+        assert_eq!(
+            format!("{}", Type::Map(Box::new(Type::String), Box::new(Type::I32))),
+            "Map<string, i32>"
+        );
     }
-    
+
     #[test]
     fn test_literal_display() {
         assert_eq!(format!("{}", Literal::Integer(42)), "42");
-        assert_eq!(format!("{}", Literal::String("hello".to_string())), "\"hello\"");
+        assert_eq!(
+            format!("{}", Literal::String("hello".to_string())),
+            "\"hello\""
+        );
         assert_eq!(format!("{}", Literal::Boolean(true)), "true");
     }
-    
+
     #[test]
     fn test_program_creation() {
         let mut program = Program::new();
@@ -577,9 +596,8 @@ mod tests {
             is_public: false,
             span: Span::new(0, 0, 1, 1),
         };
-        
+
         program.add_item(Item::Function(function));
         assert_eq!(program.items.len(), 1);
     }
 }
-

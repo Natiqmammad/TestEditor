@@ -1,10 +1,10 @@
 //! AFNS Interpreter Module
-//! 
+//!
 //! Simple interpreter for executing AFNS programs
 
-use std::collections::HashMap;
+use crate::ast::{Expression, Item, Literal, Program, Statement};
 use anyhow::{anyhow, Result};
-use crate::ast::{Program, Item, Expression, Statement, Literal};
+use std::collections::HashMap;
 
 // Simple value representation for interpretation
 #[derive(Debug, Clone)]
@@ -63,7 +63,7 @@ impl Interpreter {
 
     pub fn interpret_program(&mut self, program: &Program) -> Result<()> {
         println!("🔍 Interpreting program with {} items", program.items.len());
-        
+
         // Pre-process functions
         for item in &program.items {
             match item {
@@ -94,7 +94,7 @@ impl Interpreter {
                 _ => {}
             }
         }
-        
+
         println!("❌ Apex function not found!");
         Ok(())
     }
@@ -124,7 +124,11 @@ impl Interpreter {
             Statement::Block(_) => {
                 // Simplified block handling
             }
-            Statement::If { condition, then_branch, else_branch } => {
+            Statement::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
                 let cond_val = self.interpret_expression(condition)?;
                 if let Value::Boolean(true) = cond_val {
                     for stmt in then_branch {
@@ -136,22 +140,20 @@ impl Interpreter {
                     }
                 }
             }
-            Statement::While { condition, body } => {
-                loop {
-                    let conn_val = self.interpret_expression(condition)?;
-                    match conn_val {
-                        Value::Boolean(true) => {
-                            for stmt in body {
-                                self.interpret_statement(stmt)?;
-                            }
+            Statement::While { condition, body } => loop {
+                let conn_val = self.interpret_expression(condition)?;
+                match conn_val {
+                    Value::Boolean(true) => {
+                        for stmt in body {
+                            self.interpret_statement(stmt)?;
                         }
-                        Value::Boolean(false) => {
-                            break;
-                        }
-                        _ => return Err(anyhow!("While condition must be boolean")),
                     }
+                    Value::Boolean(false) => {
+                        break;
+                    }
+                    _ => return Err(anyhow!("While condition must be boolean")),
                 }
-            }
+            },
             Statement::Match { value, arms } => {
                 let val = self.interpret_expression(value)?;
                 for arm in arms {
@@ -198,7 +200,11 @@ impl Interpreter {
                     Err(anyhow!("Array index must be integer"))
                 }
             }
-            Expression::If { condition, then_branch, else_branch } => {
+            Expression::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
                 let cond_val = self.interpret_expression(condition)?;
                 match cond_val {
                     Value::Boolean(true) => self.interpret_expression(then_branch),
@@ -344,81 +350,64 @@ impl Interpreter {
         }
     }
 
-    fn evaluate_binary_op(&self, left: Value, op: &crate::ast::BinaryOperator, right: Value) -> Result<Value> {
+    fn evaluate_binary_op(
+        &self,
+        left: Value,
+        op: &crate::ast::BinaryOperator,
+        right: Value,
+    ) -> Result<Value> {
         match op {
-            crate::ast::BinaryOperator::Add => {
-                match (left, right) {
-                    (Value::String(l), Value::String(r)) => Ok(Value::String(l + &r)),
-                    (Value::Integer(l), Value::Integer(r)) => Ok(Value::Integer(l + r)),
-                    _ => Err(anyhow!("Cannot add incompatible types")),
-                }
-            }
-            crate::ast::BinaryOperator::Subtract => {
-                match (left, right) {
-                    (Value::Integer(l), Value::Integer(r)) => Ok(Value::Integer(l - r)),
-                    _ => Err(anyhow!("Cannot subtract non-integer types")),
-                }
-            }
-            crate::ast::BinaryOperator::Multiply => {
-                match (left, right) {
-                    (Value::Integer(l), Value::Integer(r)) => Ok(Value::Integer(l * r)),
-                    _ => Err(anyhow!("Cannot multiply non-integer types")),
-                }
-            }
-            crate::ast::BinaryOperator::Divide => {
-                match (left, right) {
-                    (Value::Integer(l), Value::Integer(r)) => {
-                        if r != 0 {
-                            Ok(Value::Integer(l / r))
-                        } else {
-                            Err(anyhow!("Division by zero"))
-                        }
+            crate::ast::BinaryOperator::Add => match (left, right) {
+                (Value::String(l), Value::String(r)) => Ok(Value::String(l + &r)),
+                (Value::Integer(l), Value::Integer(r)) => Ok(Value::Integer(l + r)),
+                _ => Err(anyhow!("Cannot add incompatible types")),
+            },
+            crate::ast::BinaryOperator::Subtract => match (left, right) {
+                (Value::Integer(l), Value::Integer(r)) => Ok(Value::Integer(l - r)),
+                _ => Err(anyhow!("Cannot subtract non-integer types")),
+            },
+            crate::ast::BinaryOperator::Multiply => match (left, right) {
+                (Value::Integer(l), Value::Integer(r)) => Ok(Value::Integer(l * r)),
+                _ => Err(anyhow!("Cannot multiply non-integer types")),
+            },
+            crate::ast::BinaryOperator::Divide => match (left, right) {
+                (Value::Integer(l), Value::Integer(r)) => {
+                    if r != 0 {
+                        Ok(Value::Integer(l / r))
+                    } else {
+                        Err(anyhow!("Division by zero"))
                     }
-                    _ => Err(anyhow!("Cannot divide non-integer types")),
                 }
-            }
-            crate::ast::BinaryOperator::Equal => {
-                Ok(Value::Boolean(self.values_equal(left, right)))
-            }
+                _ => Err(anyhow!("Cannot divide non-integer types")),
+            },
+            crate::ast::BinaryOperator::Equal => Ok(Value::Boolean(self.values_equal(left, right))),
             crate::ast::BinaryOperator::NotEqual => {
                 Ok(Value::Boolean(!self.values_equal(left, right)))
             }
-            crate::ast::BinaryOperator::Less => {
-                match (left, right) {
-                    (Value::Integer(l), Value::Integer(r)) => Ok(Value::Boolean(l < r)),
-                    _ => Err(anyhow!("Cannot compare non-integer types with <")),
-                }
-            }
-            crate::ast::BinaryOperator::Greater => {
-                match (left, right) {
-                    (Value::Integer(l), Value::Integer(r)) => Ok(Value::Boolean(l > r)),
-                    _ => Err(anyhow!("Cannot compare non-integer types with >")),
-                }
-            }
-            crate::ast::BinaryOperator::LessEqual => {
-                match (left, right) {
-                    (Value::Integer(l), Value::Integer(r)) => Ok(Value::Boolean(l <= r)),
-                    _ => Err(anyhow!("Cannot compare non-integer types with <=")),
-                }
-            }
-            crate::ast::BinaryOperator::GreaterEqual => {
-                match (left, right) {
-                    (Value::Integer(l), Value::Integer(r)) => Ok(Value::Boolean(l >= r)),
-                    _ => Err(anyhow!("Cannot compare non-integer types with >=")),
-                }
-            }
-            crate::ast::BinaryOperator::And => {
-                match (left, right) {
-                    (Value::Boolean(l), Value::Boolean(r)) => Ok(Value::Boolean(l && r)),
-                    _ => Err(anyhow!("Cannot apply AND to non-boolean types")),
-                }
-            }
-            crate::ast::BinaryOperator::Or => {
-                match (left, right) {
-                    (Value::Boolean(l), Value::Boolean(r)) => Ok(Value::Boolean(l || r)),
-                    _ => Err(anyhow!("Cannot apply OR to non-boolean types")),
-                }
-            }
+            crate::ast::BinaryOperator::Less => match (left, right) {
+                (Value::Integer(l), Value::Integer(r)) => Ok(Value::Boolean(l < r)),
+                _ => Err(anyhow!("Cannot compare non-integer types with <")),
+            },
+            crate::ast::BinaryOperator::Greater => match (left, right) {
+                (Value::Integer(l), Value::Integer(r)) => Ok(Value::Boolean(l > r)),
+                _ => Err(anyhow!("Cannot compare non-integer types with >")),
+            },
+            crate::ast::BinaryOperator::LessEqual => match (left, right) {
+                (Value::Integer(l), Value::Integer(r)) => Ok(Value::Boolean(l <= r)),
+                _ => Err(anyhow!("Cannot compare non-integer types with <=")),
+            },
+            crate::ast::BinaryOperator::GreaterEqual => match (left, right) {
+                (Value::Integer(l), Value::Integer(r)) => Ok(Value::Boolean(l >= r)),
+                _ => Err(anyhow!("Cannot compare non-integer types with >=")),
+            },
+            crate::ast::BinaryOperator::And => match (left, right) {
+                (Value::Boolean(l), Value::Boolean(r)) => Ok(Value::Boolean(l && r)),
+                _ => Err(anyhow!("Cannot apply AND to non-boolean types")),
+            },
+            crate::ast::BinaryOperator::Or => match (left, right) {
+                (Value::Boolean(l), Value::Boolean(r)) => Ok(Value::Boolean(l || r)),
+                _ => Err(anyhow!("Cannot apply OR to non-boolean types")),
+            },
             _ => Err(anyhow!("Unsupported binary operator")),
         }
     }

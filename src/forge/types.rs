@@ -1,5 +1,5 @@
 //! Types library for AFNS
-//! 
+//!
 //! This module provides specialized types including:
 //! - UUID: Universally unique identifier
 //! - Email: Email address validation and handling
@@ -9,11 +9,13 @@
 //! - Date: Date handling with timezone support
 //! - Duration: Time duration handling
 
+use chrono::{
+    DateTime, Duration as ChronoDuration, Local, NaiveDate, NaiveDateTime, TimeZone, Utc,
+};
 use std::fmt;
-use std::str::FromStr;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
+use std::str::FromStr;
 use uuid::Uuid;
-use chrono::{DateTime, Utc, Local, TimeZone, NaiveDate, NaiveDateTime, Duration as ChronoDuration};
 
 /// Universally unique identifier
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -24,7 +26,9 @@ pub struct AFNSUUID {
 impl AFNSUUID {
     /// Create a new random UUID
     pub fn new() -> Self {
-        Self { inner: Uuid::new_v4() }
+        Self {
+            inner: Uuid::new_v4(),
+        }
     }
 
     /// Create a UUID from a string
@@ -102,11 +106,11 @@ impl AFNSEmail {
     /// Check if an email address is valid
     pub fn is_valid(email: &str) -> bool {
         // Basic email validation
-        email.contains('@') && 
-        email.split('@').count() == 2 &&
-        !email.starts_with('@') &&
-        !email.ends_with('@') &&
-        email.len() > 3
+        email.contains('@')
+            && email.split('@').count() == 2
+            && !email.starts_with('@')
+            && !email.ends_with('@')
+            && email.len() > 3
     }
 
     /// Get the email address as a string
@@ -160,7 +164,7 @@ impl AFNSURL {
         if let Some(scheme_end) = url.find("://") {
             let scheme = url[..scheme_end].to_string();
             let rest = &url[scheme_end + 3..];
-            
+
             let (host_port, path_query_fragment) = if let Some(slash_pos) = rest.find('/') {
                 (rest[..slash_pos].to_string(), rest[slash_pos..].to_string())
             } else {
@@ -179,13 +183,19 @@ impl AFNSURL {
             };
 
             let (path, query_fragment) = if let Some(q_pos) = path_query_fragment.find('?') {
-                (path_query_fragment[..q_pos].to_string(), path_query_fragment[q_pos + 1..].to_string())
+                (
+                    path_query_fragment[..q_pos].to_string(),
+                    path_query_fragment[q_pos + 1..].to_string(),
+                )
             } else {
                 (path_query_fragment, String::new())
             };
 
             let (query, fragment) = if let Some(f_pos) = query_fragment.find('#') {
-                (Some(query_fragment[..f_pos].to_string()), Some(query_fragment[f_pos + 1..].to_string()))
+                (
+                    Some(query_fragment[..f_pos].to_string()),
+                    Some(query_fragment[f_pos + 1..].to_string()),
+                )
             } else if !query_fragment.is_empty() {
                 (Some(query_fragment), None)
             } else {
@@ -292,15 +302,25 @@ impl AFNSIPAddress {
 
     /// Create an IPv4 address
     pub fn ipv4(a: u8, b: u8, c: u8, d: u8) -> Self {
-        Self { inner: IpAddr::V4(Ipv4Addr::new(a, b, c, d)) }
+        Self {
+            inner: IpAddr::V4(Ipv4Addr::new(a, b, c, d)),
+        }
     }
 
     /// Create an IPv6 address
     pub fn ipv6(segments: [u16; 8]) -> Self {
-        Self { inner: IpAddr::V6(Ipv6Addr::new(
-            segments[0], segments[1], segments[2], segments[3],
-            segments[4], segments[5], segments[6], segments[7],
-        ))}
+        Self {
+            inner: IpAddr::V6(Ipv6Addr::new(
+                segments[0],
+                segments[1],
+                segments[2],
+                segments[3],
+                segments[4],
+                segments[5],
+                segments[6],
+                segments[7],
+            )),
+        }
     }
 
     /// Get the IP address as a string
@@ -392,9 +412,15 @@ impl AFNSMACAddress {
 
     /// Get the MAC address as a string
     pub fn to_string(&self) -> String {
-        format!("{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
-                self.bytes[0], self.bytes[1], self.bytes[2],
-                self.bytes[3], self.bytes[4], self.bytes[5])
+        format!(
+            "{:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}",
+            self.bytes[0],
+            self.bytes[1],
+            self.bytes[2],
+            self.bytes[3],
+            self.bytes[4],
+            self.bytes[5]
+        )
     }
 
     /// Get the MAC address as bytes
@@ -455,14 +481,18 @@ impl AFNSDate {
 
         for format in &formats {
             if let Ok(naive_dt) = NaiveDateTime::parse_from_str(&date_str, format) {
-                return Ok(Self { inner: Utc.from_utc_datetime(&naive_dt) });
+                return Ok(Self {
+                    inner: Utc.from_utc_datetime(&naive_dt),
+                });
             }
         }
 
         // Try parsing as date only
         if let Ok(naive_date) = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d") {
             let naive_dt = naive_date.and_hms(0, 0, 0);
-            return Ok(Self { inner: Utc.from_utc_datetime(&naive_dt) });
+            return Ok(Self {
+                inner: Utc.from_utc_datetime(&naive_dt),
+            });
         }
 
         Err(format!("Invalid date format: {}", date_str))
@@ -473,16 +503,28 @@ impl AFNSDate {
         let naive_date = NaiveDate::from_ymd_opt(year, month, day)
             .ok_or_else(|| format!("Invalid date: {}-{}-{}", year, month, day))?;
         let naive_dt = naive_date.and_hms(0, 0, 0);
-        Ok(Self { inner: Utc.from_utc_datetime(&naive_dt) })
+        Ok(Self {
+            inner: Utc.from_utc_datetime(&naive_dt),
+        })
     }
 
     /// Create a date from year, month, day, hour, minute, second
-    pub fn from_ymdhms(year: i32, month: u32, day: u32, hour: u32, minute: u32, second: u32) -> Result<Self, String> {
+    pub fn from_ymdhms(
+        year: i32,
+        month: u32,
+        day: u32,
+        hour: u32,
+        minute: u32,
+        second: u32,
+    ) -> Result<Self, String> {
         let naive_date = NaiveDate::from_ymd_opt(year, month, day)
             .ok_or_else(|| format!("Invalid date: {}-{}-{}", year, month, day))?;
-        let naive_dt = naive_date.and_hms_opt(hour, minute, second)
+        let naive_dt = naive_date
+            .and_hms_opt(hour, minute, second)
             .ok_or_else(|| format!("Invalid time: {}:{}:{}", hour, minute, second))?;
-        Ok(Self { inner: Utc.from_utc_datetime(&naive_dt) })
+        Ok(Self {
+            inner: Utc.from_utc_datetime(&naive_dt),
+        })
     }
 
     /// Get the current date and time
@@ -542,17 +584,23 @@ impl AFNSDate {
 
     /// Add a duration to the date
     pub fn add_duration(&self, duration: &AFNSDuration) -> Self {
-        Self { inner: self.inner + duration.inner }
+        Self {
+            inner: self.inner + duration.inner,
+        }
     }
 
     /// Subtract a duration from the date
     pub fn sub_duration(&self, duration: &AFNSDuration) -> Self {
-        Self { inner: self.inner - duration.inner }
+        Self {
+            inner: self.inner - duration.inner,
+        }
     }
 
     /// Get the difference between two dates
     pub fn diff(&self, other: &AFNSDate) -> AFNSDuration {
-        AFNSDuration { inner: self.inner.signed_duration_since(other.inner) }
+        AFNSDuration {
+            inner: self.inner.signed_duration_since(other.inner),
+        }
     }
 
     /// Check if the date is in the past
@@ -587,42 +635,58 @@ pub struct AFNSDuration {
 impl AFNSDuration {
     /// Create a duration from seconds
     pub fn from_seconds(seconds: i64) -> Self {
-        Self { inner: ChronoDuration::seconds(seconds) }
+        Self {
+            inner: ChronoDuration::seconds(seconds),
+        }
     }
 
     /// Create a duration from milliseconds
     pub fn from_milliseconds(milliseconds: i64) -> Self {
-        Self { inner: ChronoDuration::milliseconds(milliseconds) }
+        Self {
+            inner: ChronoDuration::milliseconds(milliseconds),
+        }
     }
 
     /// Create a duration from microseconds
     pub fn from_microseconds(microseconds: i64) -> Self {
-        Self { inner: ChronoDuration::microseconds(microseconds) }
+        Self {
+            inner: ChronoDuration::microseconds(microseconds),
+        }
     }
 
     /// Create a duration from nanoseconds
     pub fn from_nanoseconds(nanoseconds: i64) -> Self {
-        Self { inner: ChronoDuration::nanoseconds(nanoseconds) }
+        Self {
+            inner: ChronoDuration::nanoseconds(nanoseconds),
+        }
     }
 
     /// Create a duration from days
     pub fn from_days(days: i64) -> Self {
-        Self { inner: ChronoDuration::days(days) }
+        Self {
+            inner: ChronoDuration::days(days),
+        }
     }
 
     /// Create a duration from hours
     pub fn from_hours(hours: i64) -> Self {
-        Self { inner: ChronoDuration::hours(hours) }
+        Self {
+            inner: ChronoDuration::hours(hours),
+        }
     }
 
     /// Create a duration from minutes
     pub fn from_minutes(minutes: i64) -> Self {
-        Self { inner: ChronoDuration::minutes(minutes) }
+        Self {
+            inner: ChronoDuration::minutes(minutes),
+        }
     }
 
     /// Create a duration from weeks
     pub fn from_weeks(weeks: i64) -> Self {
-        Self { inner: ChronoDuration::weeks(weeks) }
+        Self {
+            inner: ChronoDuration::weeks(weeks),
+        }
     }
 
     /// Get the duration in seconds
@@ -667,17 +731,23 @@ impl AFNSDuration {
 
     /// Add another duration
     pub fn add(&self, other: &AFNSDuration) -> Self {
-        Self { inner: self.inner + other.inner }
+        Self {
+            inner: self.inner + other.inner,
+        }
     }
 
     /// Subtract another duration
     pub fn sub(&self, other: &AFNSDuration) -> Self {
-        Self { inner: self.inner - other.inner }
+        Self {
+            inner: self.inner - other.inner,
+        }
     }
 
     /// Multiply the duration by a scalar
     pub fn mul(&self, scalar: i64) -> Self {
-        Self { inner: self.inner * scalar }
+        Self {
+            inner: self.inner * scalar,
+        }
     }
 
     /// Divide the duration by a scalar
@@ -685,7 +755,9 @@ impl AFNSDuration {
         if scalar == 0 {
             return Err("Cannot divide duration by zero".to_string());
         }
-        Ok(Self { inner: self.inner / scalar })
+        Ok(Self {
+            inner: self.inner / scalar,
+        })
     }
 
     /// Check if the duration is zero
@@ -705,7 +777,9 @@ impl AFNSDuration {
 
     /// Get the absolute value of the duration
     pub fn abs(&self) -> Self {
-        Self { inner: self.inner.abs() }
+        Self {
+            inner: self.inner.abs(),
+        }
     }
 
     /// Get the duration as a human-readable string

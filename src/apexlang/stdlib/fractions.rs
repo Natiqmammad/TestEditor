@@ -8,6 +8,7 @@ use num_traits::{One, Signed, ToPrimitive, Zero};
 use crate::apexlang::ast::Value;
 use crate::apexlang::error::ApexError;
 
+use super::support::expect_tuple_arg;
 use super::{NativeCallable, NativeRegistry};
 
 pub(super) fn register(registry: &mut NativeRegistry) {
@@ -39,6 +40,14 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!("fraction_numerator", fraction_numerator);
     add!("fraction_denominator", fraction_denominator);
     add!("decimal_to_fraction", decimal_to_fraction);
+    add!("fraction_is_reduced", fraction_is_reduced);
+    add!("fraction_compare", fraction_compare);
+    add!("fraction_to_mixed", fraction_to_mixed);
+    add!("fraction_from_mixed", fraction_from_mixed);
+    add!("fraction_decimal_parts", fraction_decimal_parts);
+    add!("fraction_continued_terms", fraction_continued_terms);
+    add!("fraction_from_continued", fraction_from_continued);
+    add!("fraction_limit_denominator", fraction_limit_denominator);
 
     registry.register_module("fractions", functions);
 }
@@ -128,6 +137,31 @@ fn fraction_from_tuple(value: &Value) -> Result<(BigInt, BigInt), ApexError> {
     }
 }
 
+fn raw_fraction_from_tuple(value: &Value) -> Result<(BigInt, BigInt), ApexError> {
+    match value {
+        Value::Tuple(values) if values.len() == 2 => {
+            let numerator = expect_int(&values[0], "numerator")?;
+            let denominator = expect_int(&values[1], "denominator")?;
+            Ok((numerator, denominator))
+        }
+        Value::Tuple(_) => Err(ApexError::new(
+            "Fraction tuples must contain exactly two entries",
+        )),
+        _ => Err(ApexError::new("Expected a fraction tuple")),
+    }
+}
+
+fn raw_fraction(args: &[Value]) -> Result<(BigInt, BigInt), ApexError> {
+    if args.len() == 1 {
+        return raw_fraction_from_tuple(&args[0]);
+    }
+    expect_length(args, 2)?;
+    Ok((
+        expect_int(&args[0], "numerator")?,
+        expect_int(&args[1], "denominator")?,
+    ))
+}
+
 fn parse_single_fraction(args: &[Value]) -> Result<(BigInt, BigInt), ApexError> {
     if args.len() == 1 {
         return fraction_from_tuple(&args[0]);
@@ -150,6 +184,45 @@ fn parse_two_fractions(args: &[Value]) -> Result<((BigInt, BigInt), (BigInt, Big
     Err(ApexError::new(
         "Expected either two fraction tuples or four integer arguments",
     ))
+}
+
+fn optional_limit_args<'a>(
+    args: &'a [Value],
+    name: &str,
+) -> Result<(&'a [Value], Option<&'a Value>), ApexError> {
+    match args.len() {
+        0 => Err(ApexError::new(format!("{} expects a fraction", name))),
+        1 => Ok((args, None)),
+        2 => match &args[0] {
+            Value::Tuple(_) => Ok((&args[0..1], Some(&args[1]))),
+            _ => Ok((args, None)),
+        },
+        3 => Ok((&args[0..2], Some(&args[2]))),
+        _ => Err(ApexError::new(format!(
+            "{} received an unsupported number of arguments",
+            name
+        ))),
+    }
+}
+
+fn required_limit_args<'a>(
+    args: &'a [Value],
+    name: &str,
+) -> Result<(&'a [Value], &'a Value), ApexError> {
+    match args.len() {
+        2 => match &args[0] {
+            Value::Tuple(_) => Ok((&args[0..1], &args[1])),
+            _ => Err(ApexError::new(format!(
+                "{} expects a fraction tuple followed by a limit",
+                name
+            ))),
+        },
+        3 => Ok((&args[0..2], &args[2])),
+        _ => Err(ApexError::new(format!(
+            "{} expects a fraction and limit",
+            name
+        ))),
+    }
 }
 
 fn fraction_reduce(args: &[Value]) -> Result<Value, ApexError> {
@@ -338,6 +411,231 @@ fn decimal_to_fraction(args: &[Value]) -> Result<Value, ApexError> {
     }
 }
 
+fn fraction_is_reduced(args: &[Value]) -> Result<Value, ApexError> {
+    let (num, den) = raw_fraction(args)?;
+    if den.is_zero() {
+        return Err(ApexError::new("Fraction denominator cannot be zero"));
+    }
+    Ok(Value::Bool(num.gcd(&den.abs()) == BigInt::one()))
+}
+
+fn fraction_compare(args: &[Value]) -> Result<Value, ApexError> {
+    let ((a_num, a_den), (b_num, b_den)) = parse_two_fractions(args)?;
+    let left = a_num * &b_den;
+    let right = b_num * &a_den;
+    let ordering = if left == right {
+        0
+    } else if left < right {
+        -1
+    } else {
+        1
+    };
+    Ok(Value::Int(BigInt::from(ordering)))
+}
+
+fn fraction_to_mixed(args: &[Value]) -> Result<Value, ApexError> {
+    let (num, den) = parse_single_fraction(args)?;
+    let abs_num = num.abs();
+    let whole_abs = &abs_num / &den;
+    let mut whole = whole_abs.clone();
+    if num.is_negative() {
+        whole = -whole;
+    }
+    let remainder_abs = &abs_num % &den;
+    let remainder = if num.is_negative() && whole.is_zero() {
+        -remainder_abs.clone()
+    } else {
+        remainder_abs.clone()
+    };
+    Ok(Value::Tuple(vec![
+        Value::Int(whole),
+        Value::Int(remainder),
+        Value::Int(den),
+    ]))
+}
+
+fn fraction_from_mixed(args: &[Value]) -> Result<Value, ApexError> {
+    expect_length(args, 3)?;
+    let whole = expect_int(&args[0], "whole")?;
+    let remainder = expect_int(&args[1], "remainder")?;
+    let den = expect_int(&args[2], "denominator")?;
+    if den <= BigInt::zero() {
+        return Err(ApexError::new(
+            "Mixed numbers require positive denominators",
+        ));
+    }
+    if remainder.abs() >= den {
+        return Err(ApexError::new(
+            "Mixed number remainder must be less than denominator",
+        ));
+    }
+    if !whole.is_zero() && remainder.is_negative() {
+        return Err(ApexError::new(
+            "Mixed number remainder must be non-negative when whole != 0",
+        ));
+    }
+    let mut numerator = &whole * &den;
+    if whole.is_zero() {
+        numerator = remainder.clone();
+    } else if whole.is_negative() {
+        numerator -= remainder.abs();
+    } else {
+        numerator += remainder.abs();
+    }
+    Ok(tuple_from_fraction(numerator, den))
+}
+
+fn fraction_decimal_parts(args: &[Value]) -> Result<Value, ApexError> {
+    let (num, den) = parse_single_fraction(args)?;
+    let abs_num = num.abs();
+    let integer_part = &abs_num / &den;
+    let mut remainder = &abs_num % &den;
+    let mut digits = Vec::new();
+    let mut seen = HashMap::new();
+    let mut repeat_start = None;
+    let mut steps = 0usize;
+    while remainder != BigInt::zero() {
+        if let Some(index) = seen.get(&remainder) {
+            repeat_start = Some(*index);
+            break;
+        }
+        seen.insert(remainder.clone(), digits.len());
+        remainder *= 10;
+        let digit = (&remainder / &den)
+            .to_u32()
+            .ok_or_else(|| ApexError::new("Decimal digit exceeded supported precision"))?;
+        digits.push((b'0' + (digit as u8)) as char);
+        remainder = remainder % &den;
+        steps += 1;
+        if steps > 10_000 {
+            return Err(ApexError::new(
+                "Decimal expansion exceeded 10000 digits before repeating",
+            ));
+        }
+    }
+    let (non_repeat, repeat) = match repeat_start {
+        Some(index) => (
+            digits[..index].iter().collect::<String>(),
+            digits[index..].iter().collect::<String>(),
+        ),
+        None => (digits.iter().collect::<String>(), String::new()),
+    };
+    let mut integer_text = integer_part.to_string();
+    if num.is_negative() {
+        integer_text = format!("-{}", integer_text);
+    }
+    Ok(Value::Tuple(vec![
+        Value::String(integer_text),
+        Value::String(non_repeat),
+        Value::String(repeat),
+    ]))
+}
+
+fn fraction_continued_terms(args: &[Value]) -> Result<Value, ApexError> {
+    let (fraction_args, limit_arg) = optional_limit_args(args, "fraction_continued_terms")?;
+    let (mut num, mut den) = parse_single_fraction(fraction_args)?;
+    let limit = match limit_arg {
+        Some(value) => expect_positive_limit(value, "fraction_continued_terms")?
+            .to_usize()
+            .ok_or_else(|| ApexError::new("fraction_continued_terms limit exceeds usize range"))?,
+        None => 32,
+    };
+    let mut terms = Vec::new();
+    let mut steps = 0usize;
+    while !den.is_zero() && steps < limit {
+        let (q, r) = num.div_mod_floor(&den);
+        terms.push(Value::Int(q));
+        if r.is_zero() {
+            break;
+        }
+        num = den;
+        den = r;
+        steps += 1;
+    }
+    Ok(Value::Tuple(terms))
+}
+
+fn fraction_from_continued(args: &[Value]) -> Result<Value, ApexError> {
+    let tuple = expect_tuple_arg(args, 0, "fraction_from_continued")?;
+    if tuple.is_empty() {
+        return Err(ApexError::new(
+            "fraction_from_continued expects at least one continued-fraction term",
+        ));
+    }
+    let mut numerator = BigInt::one();
+    let mut denominator = BigInt::zero();
+    for term in tuple.iter().rev() {
+        let value = expect_int(term, "continued fraction term")?;
+        let next_numerator = &value * &numerator + &denominator;
+        denominator = numerator;
+        numerator = next_numerator;
+    }
+    Ok(tuple_from_fraction(numerator, denominator))
+}
+
+fn fraction_limit_denominator(args: &[Value]) -> Result<Value, ApexError> {
+    let (fraction_args, limit_value) = required_limit_args(args, "fraction_limit_denominator")?;
+    let (num, den) = parse_single_fraction(fraction_args)?;
+    let max_den = expect_positive_limit(limit_value, "fraction_limit_denominator")?;
+    let (best_num, best_den) = limit_denominator(num, den, max_den)?;
+    Ok(tuple_from_fraction(best_num, best_den))
+}
+
+fn limit_denominator(
+    num: BigInt,
+    den: BigInt,
+    max_den: BigInt,
+) -> Result<(BigInt, BigInt), ApexError> {
+    if max_den <= BigInt::zero() {
+        return Err(ApexError::new(
+            "fraction_limit_denominator expects positive denominator limit",
+        ));
+    }
+    let target_num = num.clone();
+    let target_den = den.clone();
+    let mut n = num;
+    let mut d = den;
+    let mut p0 = BigInt::zero();
+    let mut q0 = BigInt::one();
+    let mut p1 = BigInt::one();
+    let mut q1 = BigInt::zero();
+    loop {
+        let (a, r) = n.div_mod_floor(&d);
+        let p2 = &a * &p1 + &p0;
+        let q2 = &a * &q1 + &q0;
+        if q2 > max_den {
+            if q1.is_zero() {
+                return normalize_fraction(p1, q1);
+            }
+            let k = (&max_den - &q0).div_floor(&q1);
+            if k.is_zero() {
+                return normalize_fraction(p1, q1);
+            }
+            let candidate_num = &p0 + &p1 * &k;
+            let candidate_den = &q0 + &q1 * &k;
+            let diff_prev = (&target_num * &q1 - &p1 * &target_den).abs();
+            let diff_candidate =
+                (&target_num * &candidate_den - &candidate_num * &target_den).abs();
+            let scaled_prev = diff_prev * &candidate_den;
+            let scaled_candidate = diff_candidate * &q1;
+            if scaled_candidate < scaled_prev {
+                return normalize_fraction(candidate_num, candidate_den);
+            } else {
+                return normalize_fraction(p1, q1);
+            }
+        }
+        if r.is_zero() {
+            return normalize_fraction(p2, q2);
+        }
+        p0 = p1;
+        q0 = q1;
+        p1 = p2;
+        q1 = q2;
+        n = d;
+        d = r;
+    }
+}
+
 fn approximate_fraction(value: f64, max_den: u64) -> Result<(BigInt, BigInt), ApexError> {
     if max_den == 0 {
         return Err(ApexError::new("max denominator must be positive"));
@@ -472,5 +770,68 @@ mod tests {
             }
             _ => panic!("Unexpected result"),
         }
+    }
+
+    #[test]
+    fn mixed_and_decimal_helpers() {
+        assert_eq!(
+            fraction_is_reduced(&[int(3), int(4)]).unwrap(),
+            Value::Bool(true)
+        );
+        assert_eq!(
+            fraction_is_reduced(&[int(2), int(4)]).unwrap(),
+            Value::Bool(false)
+        );
+        assert_eq!(
+            fraction_compare(&[int(1), int(2), int(2), int(3)]).unwrap(),
+            Value::Int((-1).into())
+        );
+        let mixed = fraction_to_mixed(&[int(-7), int(3)]).unwrap();
+        if let Value::Tuple(values) = mixed {
+            assert_eq!(values[0], int(-2));
+            assert_eq!(values[1], int(1));
+            assert_eq!(values[2], int(3));
+        } else {
+            panic!("expected tuple");
+        }
+        let rebuilt = fraction_from_mixed(&[int(-2), int(1), int(3)]).unwrap();
+        assert_eq!(rebuilt, tuple(&[-7, 3]));
+        let decimal_parts = fraction_decimal_parts(&[int(1), int(6)]).unwrap();
+        if let Value::Tuple(values) = decimal_parts {
+            assert_eq!(values[0], Value::String("0".into()));
+            assert_eq!(values[1], Value::String("1".into()));
+            assert_eq!(values[2], Value::String("6".into()));
+        } else {
+            panic!("expected tuple");
+        }
+    }
+
+    #[test]
+    fn continued_and_limited_fractions() {
+        let terms = fraction_continued_terms(&[int(355), int(113)]).unwrap();
+        if let Value::Tuple(values) = terms {
+            let ints: Vec<i64> = values
+                .iter()
+                .map(|v| match v {
+                    Value::Int(num) => num.to_i64().unwrap(),
+                    _ => 0,
+                })
+                .collect();
+            assert_eq!(ints, vec![3, 7, 16]);
+        } else {
+            panic!("expected tuple");
+        }
+        let rebuilt =
+            fraction_from_continued(&[Value::Tuple(vec![int(3), int(7), int(16)])]).unwrap();
+        assert_eq!(rebuilt, tuple(&[355, 113]));
+        let limited = fraction_limit_denominator(&[int(355), int(113), int(10)]).unwrap();
+        assert_eq!(limited, tuple(&[22, 7]));
+        let tuple_args = Value::Tuple(vec![int(5), int(7)]);
+        let short_terms = fraction_continued_terms(&[tuple_args.clone(), int(1)]).unwrap();
+        if let Value::Tuple(values) = short_terms {
+            assert_eq!(values.len(), 1);
+        }
+        let tuple_limit = fraction_limit_denominator(&[tuple_args, int(5)]).unwrap();
+        assert_eq!(tuple_limit, tuple(&[3, 4]));
     }
 }

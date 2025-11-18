@@ -1,5 +1,5 @@
 //! Structs library for AFNS
-//! 
+//!
 //! This module provides fundamental data structures including:
 //! - Tuple: Fixed-size heterogeneous collection
 //! - Option: Represents optional values (Some or None)

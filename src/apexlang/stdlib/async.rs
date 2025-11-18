@@ -1,4 +1,6 @@
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::mpsc::TryRecvError;
 use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -20,7 +22,7 @@ pub(super) fn register(registry: &mut NativeRegistry) {
         ($map:expr, $name:literal, $func:ident) => {
             $map.insert(
                 $name.to_string(),
-                NativeCallable::new(concat!("concurrency::", $name), $func),
+                NativeCallable::new(concat!("async::", $name), $func),
             );
         };
     }
@@ -29,11 +31,17 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!(&mut functions, "join", join_task);
     add!(&mut functions, "pending", pending_tasks);
     add!(&mut functions, "yield_now", yield_now);
+    add!(&mut functions, "sleep_ms", sleep_ms);
     add!(&mut functions, "mailbox_create", mailbox_create);
     add!(&mut functions, "mailbox_send", mailbox_send);
     add!(&mut functions, "mailbox_recv", mailbox_recv);
     add!(&mut functions, "mailbox_try_recv", mailbox_try_recv);
-    registry.register_module("concurrency", functions);
+    add!(&mut functions, "mailbox_drain", mailbox_drain);
+    add!(&mut functions, "mailbox_close", mailbox_close);
+    add!(&mut functions, "mailbox_len", mailbox_len);
+    add!(&mut functions, "mailbox_recv_timeout", mailbox_recv_timeout);
+    add!(&mut functions, "mailbox_is_closed", mailbox_is_closed);
+    registry.register_module("async", functions);
 }
 
 struct TaskRegistry {
@@ -55,6 +63,8 @@ static TASKS: Lazy<Mutex<TaskRegistry>> = Lazy::new(|| Mutex::new(TaskRegistry::
 struct Mailbox {
     sender: mpsc::Sender<Value>,
     receiver: Arc<Mutex<mpsc::Receiver<Value>>>,
+    pending: Arc<AtomicUsize>,
+    closed: Arc<AtomicBool>,
 }
 
 #[derive(Default)]
@@ -67,7 +77,7 @@ static MAILBOXES: Lazy<Mutex<MailboxRegistry>> =
     Lazy::new(|| Mutex::new(MailboxRegistry::default()));
 
 fn spawn_task(args: &[Value]) -> Result<Value, ApexError> {
-    let name = expect_string_arg(args, 0, "concurrency.spawn")?;
+    let name = expect_string_arg(args, 0, "async.spawn")?;
     let payload = args
         .get(1)
         .cloned()
@@ -78,12 +88,7 @@ fn spawn_task(args: &[Value]) -> Result<Value, ApexError> {
         "prime_count" => spawn_prime_count(payload)?,
         "sleep_ms" => spawn_sleep(payload)?,
         "fibonacci" => spawn_fibonacci(payload)?,
-        other => {
-            return Err(ApexError::new(format!(
-                "Unknown concurrency task '{}'",
-                other
-            )))
-        }
+        other => return Err(ApexError::new(format!("Unknown async task '{}'", other))),
     };
     let mut registry = TASKS
         .lock()
@@ -95,7 +100,7 @@ fn spawn_task(args: &[Value]) -> Result<Value, ApexError> {
 }
 
 fn join_task(args: &[Value]) -> Result<Value, ApexError> {
-    let id = expect_int_arg(args, 0, "concurrency.join")?;
+    let id = expect_int_arg(args, 0, "async.join")?;
     let id = id
         .to_u64()
         .ok_or_else(|| ApexError::new("Task id is too large"))?;
@@ -123,6 +128,15 @@ fn yield_now(_args: &[Value]) -> Result<Value, ApexError> {
     Ok(Value::Bool(true))
 }
 
+fn sleep_ms(args: &[Value]) -> Result<Value, ApexError> {
+    let millis = expect_int_arg(args, 0, "async.sleep_ms")?;
+    let millis = millis
+        .to_u64()
+        .ok_or_else(|| ApexError::new("async.sleep_ms expects a non-negative integer"))?;
+    thread::sleep(Duration::from_millis(millis));
+    Ok(Value::Bool(true))
+}
+
 fn mailbox_create(_args: &[Value]) -> Result<Value, ApexError> {
     let handle = {
         let mut registry = MAILBOXES
@@ -131,11 +145,15 @@ fn mailbox_create(_args: &[Value]) -> Result<Value, ApexError> {
         let id = registry.next_id;
         registry.next_id += 1;
         let (sender, receiver) = mpsc::channel();
+        let pending = Arc::new(AtomicUsize::new(0));
+        let closed = Arc::new(AtomicBool::new(false));
         registry.boxes.insert(
             id,
             Mailbox {
                 sender,
                 receiver: Arc::new(Mutex::new(receiver)),
+                pending,
+                closed,
             },
         );
         Value::Tuple(vec![Value::Int(BigInt::from(id))])
@@ -144,46 +162,47 @@ fn mailbox_create(_args: &[Value]) -> Result<Value, ApexError> {
 }
 
 fn mailbox_send(args: &[Value]) -> Result<Value, ApexError> {
-    let handle = expect_mailbox_handle(args, 0, "concurrency.mailbox_send")?;
+    let handle = expect_mailbox_handle(args, 0, "async.mailbox_send")?;
     let payload = args
         .get(1)
         .cloned()
-        .ok_or_else(|| ApexError::new("concurrency.mailbox_send expects a payload"))?;
-    let sender = {
-        let registry = MAILBOXES
-            .lock()
-            .map_err(|_| ApexError::new("Mailbox registry lock poisoned"))?;
-        registry
-            .boxes
-            .get(&handle)
-            .map(|entry| entry.sender.clone())
-            .ok_or_else(|| ApexError::new("Unknown mailbox handle"))?
-    };
-    sender
+        .ok_or_else(|| ApexError::new("async.mailbox_send expects a payload"))?;
+    let view = get_mailbox_view(handle)?;
+    if view.closed.load(Ordering::SeqCst) {
+        return Err(ApexError::new("Mailbox is closed"));
+    }
+    view.sender
         .send(payload)
         .map_err(|_| ApexError::new("Mailbox receiver disconnected"))?;
+    view.pending.fetch_add(1, Ordering::SeqCst);
     Ok(Value::Bool(true))
 }
 
 fn mailbox_recv(args: &[Value]) -> Result<Value, ApexError> {
-    let handle = expect_mailbox_handle(args, 0, "concurrency.mailbox_recv")?;
-    let receiver = get_mailbox_receiver(handle)?;
-    let value = receiver
+    let handle = expect_mailbox_handle(args, 0, "async.mailbox_recv")?;
+    let view = get_mailbox_view(handle)?;
+    let value = view
+        .receiver
         .lock()
         .map_err(|_| ApexError::new("Mailbox receiver lock poisoned"))?
         .recv()
         .map_err(|_| ApexError::new("Mailbox receiver disconnected"))?;
+    view.pending.fetch_sub(1, Ordering::SeqCst);
     Ok(value)
 }
 
 fn mailbox_try_recv(args: &[Value]) -> Result<Value, ApexError> {
-    let handle = expect_mailbox_handle(args, 0, "concurrency.mailbox_try_recv")?;
-    let receiver = get_mailbox_receiver(handle)?;
-    let guard = receiver
+    let handle = expect_mailbox_handle(args, 0, "async.mailbox_try_recv")?;
+    let view = get_mailbox_view(handle)?;
+    let guard = view
+        .receiver
         .lock()
         .map_err(|_| ApexError::new("Mailbox receiver lock poisoned"))?;
     match guard.try_recv() {
-        Ok(value) => Ok(Value::Tuple(vec![Value::Bool(true), value])),
+        Ok(value) => {
+            view.pending.fetch_sub(1, Ordering::SeqCst);
+            Ok(Value::Tuple(vec![Value::Bool(true), value]))
+        }
         Err(mpsc::TryRecvError::Empty) => {
             Ok(Value::Tuple(vec![Value::Bool(false), Value::Bool(false)]))
         }
@@ -191,6 +210,73 @@ fn mailbox_try_recv(args: &[Value]) -> Result<Value, ApexError> {
             Err(ApexError::new("Mailbox receiver disconnected"))
         }
     }
+}
+
+fn mailbox_drain(args: &[Value]) -> Result<Value, ApexError> {
+    let handle = expect_mailbox_handle(args, 0, "async.mailbox_drain")?;
+    let view = get_mailbox_view(handle)?;
+    let guard = view
+        .receiver
+        .lock()
+        .map_err(|_| ApexError::new("Mailbox receiver lock poisoned"))?;
+    let mut drained = Vec::new();
+    loop {
+        match guard.try_recv() {
+            Ok(value) => {
+                view.pending.fetch_sub(1, Ordering::SeqCst);
+                drained.push(value)
+            }
+            Err(TryRecvError::Empty) => break,
+            Err(TryRecvError::Disconnected) => break,
+        }
+    }
+    Ok(Value::Tuple(drained))
+}
+
+fn mailbox_close(args: &[Value]) -> Result<Value, ApexError> {
+    let handle = expect_mailbox_handle(args, 0, "async.mailbox_close")?;
+    let mut registry = MAILBOXES
+        .lock()
+        .map_err(|_| ApexError::new("Mailbox registry lock poisoned"))?;
+    if let Some(entry) = registry.boxes.remove(&handle) {
+        entry.closed.store(true, Ordering::SeqCst);
+        Ok(Value::Bool(true))
+    } else {
+        Ok(Value::Bool(false))
+    }
+}
+
+fn mailbox_len(args: &[Value]) -> Result<Value, ApexError> {
+    let handle = expect_mailbox_handle(args, 0, "async.mailbox_len")?;
+    let view = get_mailbox_view(handle)?;
+    let pending = view.pending.load(Ordering::SeqCst);
+    Ok(Value::Int(BigInt::from(pending)))
+}
+
+fn mailbox_recv_timeout(args: &[Value]) -> Result<Value, ApexError> {
+    let handle = expect_mailbox_handle(args, 0, "async.mailbox_recv_timeout")?;
+    let timeout = expect_int_arg(args, 1, "async.mailbox_recv_timeout")?;
+    let millis = timeout.to_u64().ok_or_else(|| {
+        ApexError::new("async.mailbox_recv_timeout expects a non-negative timeout")
+    })?;
+    let view = get_mailbox_view(handle)?;
+    let value = view
+        .receiver
+        .lock()
+        .map_err(|_| ApexError::new("Mailbox receiver lock poisoned"))?
+        .recv_timeout(Duration::from_millis(millis))
+        .map_err(|err| match err {
+            mpsc::RecvTimeoutError::Timeout => ApexError::new("Mailbox receive timed out"),
+            mpsc::RecvTimeoutError::Disconnected => ApexError::new("Mailbox receiver disconnected"),
+        })?;
+    view.pending.fetch_sub(1, Ordering::SeqCst);
+    Ok(value)
+}
+
+fn mailbox_is_closed(args: &[Value]) -> Result<Value, ApexError> {
+    let handle = expect_mailbox_handle(args, 0, "async.mailbox_is_closed")?;
+    let view = get_mailbox_view(handle)?;
+    Ok(Value::Bool(view.closed.load(Ordering::SeqCst)))
 }
 
 fn spawn_sum(value: Value) -> Result<thread::JoinHandle<Value>, ApexError> {
@@ -295,17 +381,6 @@ fn fibonacci(n: u64) -> BigInt {
     b
 }
 
-fn get_mailbox_receiver(handle: u64) -> Result<Arc<Mutex<mpsc::Receiver<Value>>>, ApexError> {
-    let registry = MAILBOXES
-        .lock()
-        .map_err(|_| ApexError::new("Mailbox registry lock poisoned"))?;
-    registry
-        .boxes
-        .get(&handle)
-        .map(|entry| entry.receiver.clone())
-        .ok_or_else(|| ApexError::new("Unknown mailbox handle"))
-}
-
 fn expect_mailbox_handle(args: &[Value], index: usize, name: &str) -> Result<u64, ApexError> {
     let tuple = expect_tuple_arg(args, index, name)?;
     if tuple.len() != 1 {
@@ -323,6 +398,30 @@ fn expect_mailbox_handle(args: &[Value], index: usize, name: &str) -> Result<u64
             name
         ))),
     }
+}
+
+#[derive(Clone)]
+struct MailboxView {
+    sender: mpsc::Sender<Value>,
+    receiver: Arc<Mutex<mpsc::Receiver<Value>>>,
+    pending: Arc<AtomicUsize>,
+    closed: Arc<AtomicBool>,
+}
+
+fn get_mailbox_view(handle: u64) -> Result<MailboxView, ApexError> {
+    let registry = MAILBOXES
+        .lock()
+        .map_err(|_| ApexError::new("Mailbox registry lock poisoned"))?;
+    registry
+        .boxes
+        .get(&handle)
+        .map(|entry| MailboxView {
+            sender: entry.sender.clone(),
+            receiver: entry.receiver.clone(),
+            pending: entry.pending.clone(),
+            closed: entry.closed.clone(),
+        })
+        .ok_or_else(|| ApexError::new("Unknown mailbox handle"))
 }
 
 #[cfg(test)]
@@ -356,5 +455,46 @@ mod tests {
         } else {
             panic!("expected tuple");
         }
+    }
+
+    #[test]
+    fn mailbox_drain_and_sleep() {
+        sleep_ms(&[Value::Int(0.into())]).expect("sleep");
+        let handle = mailbox_create(&[]).expect("create mailbox");
+        mailbox_send(&[handle.clone(), Value::Int(7.into())]).expect("send");
+        mailbox_send(&[handle.clone(), Value::Bool(false)]).expect("send");
+        let drained = mailbox_drain(&[handle.clone()]).expect("drain");
+        if let Value::Tuple(values) = drained {
+            assert_eq!(values.len(), 2);
+        } else {
+            panic!("expected tuple");
+        }
+        let closed = mailbox_close(&[handle.clone()]).expect("close");
+        assert_eq!(closed, Value::Bool(true));
+        let closed_again = mailbox_close(&[handle]).expect("close again");
+        assert_eq!(closed_again, Value::Bool(false));
+    }
+
+    #[test]
+    fn mailbox_len_and_timeout_helpers() {
+        let handle = mailbox_create(&[]).expect("create");
+        assert_eq!(
+            mailbox_len(&[handle.clone()]).unwrap(),
+            Value::Int(0.into())
+        );
+        mailbox_send(&[handle.clone(), Value::Int(9.into())]).expect("send");
+        assert_eq!(
+            mailbox_len(&[handle.clone()]).unwrap(),
+            Value::Int(1.into())
+        );
+        let value = mailbox_recv_timeout(&[handle.clone(), Value::Int(0.into())]).expect("recv");
+        assert_eq!(value, Value::Int(9.into()));
+        assert_eq!(
+            mailbox_len(&[handle.clone()]).unwrap(),
+            Value::Int(0.into())
+        );
+        let open = mailbox_is_closed(&[handle.clone()]).expect("open");
+        assert_eq!(open, Value::Bool(false));
+        assert_eq!(mailbox_close(&[handle]).unwrap(), Value::Bool(true));
     }
 }
