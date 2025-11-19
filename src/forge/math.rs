@@ -1,11 +1,11 @@
 //! Math library for ApexForge NightScript
 
-use rust_decimal::Decimal as RustDecimal;
 use num_bigint::BigInt as RustBigInt;
 use num_complex::Complex64;
-use num_rational::Rational64;
-use num_traits::{Zero, Signed, ToPrimitive};
 use num_integer::{gcd, lcm};
+use num_rational::Rational64;
+use num_traits::{Signed, ToPrimitive, Zero};
+use rust_decimal::Decimal as RustDecimal;
 use std::str::FromStr;
 
 /// Decimal type for precise decimal arithmetic
@@ -34,53 +34,77 @@ impl AFNSDecimal {
     }
 
     pub fn add(&self, other: &AFNSDecimal) -> AFNSDecimal {
-        AFNSDecimal { value: self.value + other.value }
+        AFNSDecimal {
+            value: self.value + other.value,
+        }
     }
 
     pub fn subtract(&self, other: &AFNSDecimal) -> AFNSDecimal {
-        AFNSDecimal { value: self.value - other.value }
+        AFNSDecimal {
+            value: self.value - other.value,
+        }
     }
 
     pub fn multiply(&self, other: &AFNSDecimal) -> AFNSDecimal {
-        AFNSDecimal { value: self.value * other.value }
+        AFNSDecimal {
+            value: self.value * other.value,
+        }
     }
 
     pub fn divide(&self, other: &AFNSDecimal) -> Result<AFNSDecimal, String> {
         if other.value.is_zero() {
             Err("Division by zero".to_string())
         } else {
-            Ok(AFNSDecimal { value: self.value / other.value })
+            Ok(AFNSDecimal {
+                value: self.value / other.value,
+            })
         }
     }
 
     pub fn round(&self, places: u32) -> AFNSDecimal {
-        AFNSDecimal { value: self.value.round_dp(places) }
+        AFNSDecimal {
+            value: self.value.round_dp(places),
+        }
     }
 
     pub fn floor(&self) -> AFNSDecimal {
-        AFNSDecimal { value: self.value.floor() }
+        AFNSDecimal {
+            value: self.value.floor(),
+        }
     }
 
     pub fn ceil(&self) -> AFNSDecimal {
-        AFNSDecimal { value: self.value.ceil() }
+        AFNSDecimal {
+            value: self.value.ceil(),
+        }
     }
 
     pub fn trunc(&self) -> AFNSDecimal {
-        AFNSDecimal { value: self.value.trunc() }
+        AFNSDecimal {
+            value: self.value.trunc(),
+        }
     }
 
     pub fn abs(&self) -> AFNSDecimal {
-        AFNSDecimal { value: self.value.abs() }
+        AFNSDecimal {
+            value: self.value.abs(),
+        }
     }
 
     pub fn sign(&self) -> i32 {
-        if self.value.is_sign_positive() { 1 }
-        else if self.value.is_sign_negative() { -1 }
-        else { 0 }
+        if self.value.is_sign_positive() {
+            1
+        } else if self.value.is_sign_negative() {
+            -1
+        } else {
+            0
+        }
     }
 
     pub fn pow(&self, exponent: u32) -> AFNSDecimal {
-        AFNSDecimal { value: self.value.pow(exponent) }
+        AFNSDecimal {
+            value: self.value.pow(exponent),
+        }
     }
 
     pub fn sqrt(&self) -> Result<AFNSDecimal, String> {
@@ -128,22 +152,30 @@ impl AFNSBigInt {
     }
 
     pub fn add(&self, other: &AFNSBigInt) -> AFNSBigInt {
-        AFNSBigInt { value: &self.value + &other.value }
+        AFNSBigInt {
+            value: &self.value + &other.value,
+        }
     }
 
     pub fn subtract(&self, other: &AFNSBigInt) -> AFNSBigInt {
-        AFNSBigInt { value: &self.value - &other.value }
+        AFNSBigInt {
+            value: &self.value - &other.value,
+        }
     }
 
     pub fn multiply(&self, other: &AFNSBigInt) -> AFNSBigInt {
-        AFNSBigInt { value: &self.value * &other.value }
+        AFNSBigInt {
+            value: &self.value * &other.value,
+        }
     }
 
     pub fn divide(&self, other: &AFNSBigInt) -> Result<AFNSBigInt, String> {
         if other.value.is_zero() {
             Err("Division by zero".to_string())
         } else {
-            Ok(AFNSBigInt { value: &self.value / &other.value })
+            Ok(AFNSBigInt {
+                value: &self.value / &other.value,
+            })
         }
     }
 
@@ -151,7 +183,9 @@ impl AFNSBigInt {
         if other.value.is_zero() {
             Err("Modulo by zero".to_string())
         } else {
-            Ok(AFNSBigInt { value: &self.value % &other.value })
+            Ok(AFNSBigInt {
+                value: &self.value % &other.value,
+            })
         }
     }
 
@@ -173,10 +207,12 @@ impl AFNSBigInt {
         if &self.value % 2 == 0 || &self.value % 3 == 0 {
             return false;
         }
-        
+
         let mut i = BigInt::from(5);
         while &i * &i <= self.value {
-            if &self.value % &i == BigInt::from(0) || &self.value % (&i + BigInt::from(2)) == BigInt::from(0) {
+            if &self.value % &i == BigInt::from(0)
+                || &self.value % (&i + BigInt::from(2)) == BigInt::from(0)
+            {
                 return false;
             }
             i += 6;
@@ -185,15 +221,21 @@ impl AFNSBigInt {
     }
 
     pub fn gcd(&self, other: &AFNSBigInt) -> AFNSBigInt {
-        AFNSBigInt { value: gcd(&self.value, &other.value) }
+        AFNSBigInt {
+            value: gcd(&self.value, &other.value),
+        }
     }
 
     pub fn lcm(&self, other: &AFNSBigInt) -> AFNSBigInt {
-        AFNSBigInt { value: lcm(&self.value, &other.value) }
+        AFNSBigInt {
+            value: lcm(&self.value, &other.value),
+        }
     }
 
     pub fn pow(&self, exponent: u32) -> AFNSBigInt {
-        AFNSBigInt { value: self.value.pow(exponent) }
+        AFNSBigInt {
+            value: self.value.pow(exponent),
+        }
     }
 
     pub fn sqrt(&self) -> Result<AFNSBigInt, String> {
@@ -211,13 +253,19 @@ impl AFNSBigInt {
     }
 
     pub fn abs(&self) -> AFNSBigInt {
-        AFNSBigInt { value: self.value.abs() }
+        AFNSBigInt {
+            value: self.value.abs(),
+        }
     }
 
     pub fn sign(&self) -> i32 {
-        if self.value.is_sign_positive() { 1 }
-        else if self.value.is_sign_negative() { -1 }
-        else { 0 }
+        if self.value.is_sign_positive() {
+            1
+        } else if self.value.is_sign_negative() {
+            -1
+        } else {
+            0
+        }
     }
 
     pub fn to_binary(&self) -> String {
@@ -241,7 +289,9 @@ impl AFNSBigInt {
     }
 
     pub fn clone(&self) -> AFNSBigInt {
-        AFNSBigInt { value: self.value.clone() }
+        AFNSBigInt {
+            value: self.value.clone(),
+        }
     }
 
     pub fn copy(&self) -> AFNSBigInt {
@@ -256,26 +306,36 @@ pub struct AFNSComplex {
 
 impl AFNSComplex {
     pub fn new(real: f64, imag: f64) -> Self {
-        AFNSComplex { value: Complex::new(real, imag) }
+        AFNSComplex {
+            value: Complex::new(real, imag),
+        }
     }
 
     pub fn add(&self, other: &AFNSComplex) -> AFNSComplex {
-        AFNSComplex { value: self.value + other.value }
+        AFNSComplex {
+            value: self.value + other.value,
+        }
     }
 
     pub fn subtract(&self, other: &AFNSComplex) -> AFNSComplex {
-        AFNSComplex { value: self.value - other.value }
+        AFNSComplex {
+            value: self.value - other.value,
+        }
     }
 
     pub fn multiply(&self, other: &AFNSComplex) -> AFNSComplex {
-        AFNSComplex { value: self.value * other.value }
+        AFNSComplex {
+            value: self.value * other.value,
+        }
     }
 
     pub fn divide(&self, other: &AFNSComplex) -> Result<AFNSComplex, String> {
         if other.value.norm() == 0.0 {
             Err("Division by zero".to_string())
         } else {
-            Ok(AFNSComplex { value: self.value / other.value })
+            Ok(AFNSComplex {
+                value: self.value / other.value,
+            })
         }
     }
 
@@ -296,35 +356,51 @@ impl AFNSComplex {
     }
 
     pub fn conjugate(&self) -> AFNSComplex {
-        AFNSComplex { value: self.value.conj() }
+        AFNSComplex {
+            value: self.value.conj(),
+        }
     }
 
     pub fn pow(&self, exponent: u32) -> AFNSComplex {
-        AFNSComplex { value: self.value.powi(exponent as i32) }
+        AFNSComplex {
+            value: self.value.powi(exponent as i32),
+        }
     }
 
     pub fn sqrt(&self) -> AFNSComplex {
-        AFNSComplex { value: self.value.sqrt() }
+        AFNSComplex {
+            value: self.value.sqrt(),
+        }
     }
 
     pub fn exp(&self) -> AFNSComplex {
-        AFNSComplex { value: self.value.exp() }
+        AFNSComplex {
+            value: self.value.exp(),
+        }
     }
 
     pub fn ln(&self) -> AFNSComplex {
-        AFNSComplex { value: self.value.ln() }
+        AFNSComplex {
+            value: self.value.ln(),
+        }
     }
 
     pub fn sin(&self) -> AFNSComplex {
-        AFNSComplex { value: self.value.sin() }
+        AFNSComplex {
+            value: self.value.sin(),
+        }
     }
 
     pub fn cos(&self) -> AFNSComplex {
-        AFNSComplex { value: self.value.cos() }
+        AFNSComplex {
+            value: self.value.cos(),
+        }
     }
 
     pub fn tan(&self) -> AFNSComplex {
-        AFNSComplex { value: self.value.tan() }
+        AFNSComplex {
+            value: self.value.tan(),
+        }
     }
 
     pub fn parse(value: &str) -> Result<AFNSComplex, String> {
@@ -333,13 +409,17 @@ impl AFNSComplex {
         if parts.len() != 2 {
             return Err("Invalid complex format".to_string());
         }
-        
+
         let real_part = parts[0].trim();
         let imag_part = parts[1].trim().trim_end_matches('i');
-        
-        let real = real_part.parse::<f64>().map_err(|e| format!("Invalid real part: {}", e))?;
-        let imag = imag_part.parse::<f64>().map_err(|e| format!("Invalid imaginary part: {}", e))?;
-        
+
+        let real = real_part
+            .parse::<f64>()
+            .map_err(|e| format!("Invalid real part: {}", e))?;
+        let imag = imag_part
+            .parse::<f64>()
+            .map_err(|e| format!("Invalid imaginary part: {}", e))?;
+
         Ok(AFNSComplex::new(real, imag))
     }
 
@@ -366,27 +446,37 @@ impl AFNSRational {
         if denominator == 0 {
             Err("Division by zero".to_string())
         } else {
-            Ok(AFNSRational { value: Rational::new(numerator, denominator) })
+            Ok(AFNSRational {
+                value: Rational::new(numerator, denominator),
+            })
         }
     }
 
     pub fn add(&self, other: &AFNSRational) -> AFNSRational {
-        AFNSRational { value: self.value + other.value }
+        AFNSRational {
+            value: self.value + other.value,
+        }
     }
 
     pub fn subtract(&self, other: &AFNSRational) -> AFNSRational {
-        AFNSRational { value: self.value - other.value }
+        AFNSRational {
+            value: self.value - other.value,
+        }
     }
 
     pub fn multiply(&self, other: &AFNSRational) -> AFNSRational {
-        AFNSRational { value: self.value * other.value }
+        AFNSRational {
+            value: self.value * other.value,
+        }
     }
 
     pub fn divide(&self, other: &AFNSRational) -> Result<AFNSRational, String> {
         if other.value.is_zero() {
             Err("Division by zero".to_string())
         } else {
-            Ok(AFNSRational { value: self.value / other.value })
+            Ok(AFNSRational {
+                value: self.value / other.value,
+            })
         }
     }
 
@@ -407,29 +497,41 @@ impl AFNSRational {
     }
 
     pub fn simplify(&self) -> AFNSRational {
-        AFNSRational { value: self.value.reduced() }
+        AFNSRational {
+            value: self.value.reduced(),
+        }
     }
 
     pub fn reciprocal(&self) -> Result<AFNSRational, String> {
         if self.value.is_zero() {
             Err("Reciprocal of zero".to_string())
         } else {
-            Ok(AFNSRational { value: Rational::new(*self.value.denom(), *self.value.numer()) })
+            Ok(AFNSRational {
+                value: Rational::new(*self.value.denom(), *self.value.numer()),
+            })
         }
     }
 
     pub fn pow(&self, exponent: u32) -> AFNSRational {
-        AFNSRational { value: self.value.pow(exponent as i32) }
+        AFNSRational {
+            value: self.value.pow(exponent as i32),
+        }
     }
 
     pub fn abs(&self) -> AFNSRational {
-        AFNSRational { value: self.value.abs() }
+        AFNSRational {
+            value: self.value.abs(),
+        }
     }
 
     pub fn sign(&self) -> i32 {
-        if self.value.is_sign_positive() { 1 }
-        else if self.value.is_sign_negative() { -1 }
-        else { 0 }
+        if self.value.is_sign_positive() {
+            1
+        } else if self.value.is_sign_negative() {
+            -1
+        } else {
+            0
+        }
     }
 
     pub fn parse(value: &str) -> Result<AFNSRational, String> {
@@ -438,10 +540,16 @@ impl AFNSRational {
         if parts.len() != 2 {
             return Err("Invalid rational format".to_string());
         }
-        
-        let numerator = parts[0].trim().parse::<i64>().map_err(|e| format!("Invalid numerator: {}", e))?;
-        let denominator = parts[1].trim().parse::<i64>().map_err(|e| format!("Invalid denominator: {}", e))?;
-        
+
+        let numerator = parts[0]
+            .trim()
+            .parse::<i64>()
+            .map_err(|e| format!("Invalid numerator: {}", e))?;
+        let denominator = parts[1]
+            .trim()
+            .parse::<i64>()
+            .map_err(|e| format!("Invalid denominator: {}", e))?;
+
         AFNSRational::new(numerator, denominator)
     }
 

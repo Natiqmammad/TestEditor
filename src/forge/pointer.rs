@@ -1,14 +1,14 @@
 //! Pointer library for AFNS
-//! 
+//!
 //! This module provides pointer types including:
 //! - Raw Pointers
 //! - Smart Pointers
 //! - Interior Mutability
 
+use std::cell::{Cell, RefCell};
 use std::ptr;
-use std::sync::{Arc, Mutex, RwLock};
-use std::cell::{RefCell, Cell};
 use std::rc::Rc;
+use std::sync::{Arc, Mutex, RwLock};
 
 /// Raw pointer wrapper
 #[derive(Debug)]
@@ -247,12 +247,16 @@ impl<T> AFNSAtomicInteriorMutability<T> {
 
     /// Get a reference to the inner value
     pub fn lock(&self) -> Result<std::sync::MutexGuard<T>, String> {
-        self.inner.lock().map_err(|e| format!("Failed to lock: {}", e))
+        self.inner
+            .lock()
+            .map_err(|e| format!("Failed to lock: {}", e))
     }
 
     /// Try to get a reference to the inner value
     pub fn try_lock(&self) -> Result<std::sync::MutexGuard<T>, String> {
-        self.inner.try_lock().map_err(|e| format!("Failed to try lock: {}", e))
+        self.inner
+            .try_lock()
+            .map_err(|e| format!("Failed to try lock: {}", e))
     }
 }
 
@@ -337,22 +341,30 @@ impl<T> AFNSRwLock<T> {
 
     /// Acquire a read lock
     pub fn read(&self) -> Result<std::sync::RwLockReadGuard<T>, String> {
-        self.inner.read().map_err(|e| format!("Failed to acquire read lock: {}", e))
+        self.inner
+            .read()
+            .map_err(|e| format!("Failed to acquire read lock: {}", e))
     }
 
     /// Acquire a write lock
     pub fn write(&self) -> Result<std::sync::RwLockWriteGuard<T>, String> {
-        self.inner.write().map_err(|e| format!("Failed to acquire write lock: {}", e))
+        self.inner
+            .write()
+            .map_err(|e| format!("Failed to acquire write lock: {}", e))
     }
 
     /// Try to acquire a read lock
     pub fn try_read(&self) -> Result<std::sync::RwLockReadGuard<T>, String> {
-        self.inner.try_read().map_err(|e| format!("Failed to try read lock: {}", e))
+        self.inner
+            .try_read()
+            .map_err(|e| format!("Failed to try read lock: {}", e))
     }
 
     /// Try to acquire a write lock
     pub fn try_write(&self) -> Result<std::sync::RwLockWriteGuard<T>, String> {
-        self.inner.try_write().map_err(|e| format!("Failed to try write lock: {}", e))
+        self.inner
+            .try_write()
+            .map_err(|e| format!("Failed to try write lock: {}", e))
     }
 }
 

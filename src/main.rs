@@ -1,14 +1,15 @@
 //! ApexForge NightScript Compiler
-//! 
+//!
 //! A hybrid programming language for system programming and high-level applications.
 
+mod apexlang;
+mod ast;
+mod codegen;
+mod flutter_integration;
+mod interpreter;
 mod lexer;
 mod parser;
-mod ast;
 mod type_system;
-mod codegen;
-mod interpreter;
-mod flutter_integration;
 
 // AFNS Standard Library Integration
 #[cfg(feature = "forge")]
@@ -16,10 +17,12 @@ mod forge;
 
 use codegen::CodeGenerator;
 
-use clap::{Parser, Subcommand};
-use std::fs;
-use std::path::PathBuf;
 use anyhow::Result;
+use clap::{Parser, Subcommand, ValueEnum};
+use std::fs;
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
 
 /// ApexForge NightScript Compiler
 #[derive(Parser)]
@@ -38,75 +41,115 @@ enum Commands {
         /// Input source file
         #[arg(short, long)]
         input: PathBuf,
-        
+
         /// Output file
         #[arg(short = 'o', long)]
         output: Option<PathBuf>,
-        
+
         /// Target platform (native, wasm, bytecode)
         #[arg(short = 't', long, default_value = "native")]
         target: String,
-        
+
         /// Optimization level (0-3)
         #[arg(short = 'O', long, default_value = "1")]
         opt_level: u8,
     },
-    
+
     /// Run AFNS source files directly
     Run {
         /// Source file to run
         input: PathBuf,
-        
+
         /// Arguments to pass to the program
         args: Vec<String>,
     },
-    
+
     /// Format AFNS source files
     Fmt {
         /// Files to format
         files: Vec<PathBuf>,
-        
+
         /// Check formatting without modifying files
         #[arg(long)]
         check: bool,
     },
-    
+
     /// Run tests
     Test {
         /// Test files or directories
         files: Vec<PathBuf>,
-        
+
         /// Run tests in parallel
         #[arg(long)]
         parallel: bool,
     },
-    
+
     /// Check syntax without building
     Check {
         /// Files to check
         files: Vec<PathBuf>,
     },
+
+    /// Evaluate APEXLANG source files
+    Apex {
+        /// ApexLang source file to evaluate
+        #[arg(short, long)]
+        input: PathBuf,
+    },
+
+    /// Visualize APEXLANG ASTs as Graphviz DOT
+    ApexViz {
+        /// ApexLang source file to visualize
+        #[arg(short, long)]
+        input: PathBuf,
+
+        /// Optional path to save the DOT graph
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+
+        /// Output format (dot emits plain text; svg/png require Graphviz `dot`)
+        #[arg(long, value_enum, default_value = "dot")]
+        format: VizFormat,
+    },
+}
+
+#[derive(Copy, Clone, Debug, ValueEnum)]
+enum VizFormat {
+    Dot,
+    Svg,
+    Png,
+}
+
+impl VizFormat {
+    fn graphviz_flag(&self) -> &'static str {
+        match self {
+            VizFormat::Dot => "dot",
+            VizFormat::Svg => "svg",
+            VizFormat::Png => "png",
+        }
+    }
 }
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
-    
+
     match cli.command {
-        Commands::Build { input, output, target, opt_level } => {
-            build_command(input, output, target, opt_level)
-        }
-        Commands::Run { input, args } => {
-            run_command(input, args)
-        }
-        Commands::Fmt { files, check } => {
-            fmt_command(files, check)
-        }
-        Commands::Test { files, parallel } => {
-            test_command(files, parallel)
-        }
-        Commands::Check { files } => {
-            check_command(files)
-        }
+        Commands::Build {
+            input,
+            output,
+            target,
+            opt_level,
+        } => build_command(input, output, target, opt_level),
+        Commands::Run { input, args } => run_command(input, args),
+        Commands::Fmt { files, check } => fmt_command(files, check),
+        Commands::Test { files, parallel } => test_command(files, parallel),
+        Commands::Check { files } => check_command(files),
+        Commands::Apex { input } => apex_command(input),
+        Commands::ApexViz {
+            input,
+            output,
+            format,
+        } => apex_viz_command(input, output, format),
     }
 }
 
@@ -119,19 +162,19 @@ fn build_command(
     println!("Building AFNS source: {:?}", input);
     println!("Target: {}", target);
     println!("Optimization level: {}", opt_level);
-    
+
     // Read source file
     let source = fs::read_to_string(&input)?;
-    
+
     // Lex the source
     let tokens: Vec<_> = lexer::PositionalLexer::new(&source).collect();
     println!("Lexed {} tokens", tokens.len());
-    
+
     // Parse the source
     let mut parser = parser::Parser::new(tokens);
     let ast = parser.parse()?;
     println!("Parsed AST with {} items", ast.items.len());
-    
+
     // Generate output filename if not provided
     let output_path = output.unwrap_or_else(|| {
         let mut path = input.clone();
@@ -142,7 +185,7 @@ fn build_command(
         });
         path
     });
-    
+
     // Generate code based on target
     match target.as_str() {
         "native" => {
@@ -170,7 +213,7 @@ fn build_command(
             return Err(anyhow::anyhow!("Unsupported target: {}", target));
         }
     }
-    
+
     println!("Build completed successfully!");
     Ok(())
 }
@@ -180,22 +223,22 @@ fn run_command(input: PathBuf, args: Vec<String>) -> Result<()> {
     if !args.is_empty() {
         println!("Arguments: {:?}", args);
     }
-    
+
     // Read source file
     let source = fs::read_to_string(&input)?;
-    
+
     // Lex the source
     let tokens: Vec<_> = lexer::PositionalLexer::new(&source).collect();
-    
+
     // Parse the source
     let mut parser = parser::Parser::new(tokens);
     let ast = parser.parse()?;
-    
+
     println!("AST parsed successfully with {} items", ast.items.len());
-    
+
     // Simple AFNS Interpreter
     interpreter::interpret_program(&ast)?;
-    
+
     Ok(())
 }
 
@@ -204,30 +247,30 @@ fn fmt_command(files: Vec<PathBuf>, check: bool) -> Result<()> {
         println!("No files specified for formatting");
         return Ok(());
     }
-    
+
     if check {
         println!("Checking formatting for {} files", files.len());
     } else {
         println!("Formatting {} files", files.len());
     }
-    
+
     for file in files {
         if !file.exists() {
             eprintln!("Warning: File {:?} does not exist", file);
             continue;
         }
-        
+
         let source = fs::read_to_string(&file)?;
-        
+
         // TODO: Implement AFNS formatter
         println!("Processing file: {:?}", file);
-        
+
         if !check {
             // TODO: Write formatted source back to file
             println!("Formatted: {:?}", file);
         }
     }
-    
+
     Ok(())
 }
 
@@ -236,46 +279,49 @@ fn test_command(files: Vec<PathBuf>, parallel: bool) -> Result<()> {
     if parallel {
         println!("Running tests in parallel");
     }
-    
+
     if files.is_empty() {
         println!("No test files specified");
         return Ok(());
     }
-    
+
     for file in files {
         if !file.exists() {
             eprintln!("Warning: Test file {:?} does not exist", file);
             continue;
         }
-        
+
         println!("Running tests in: {:?}", file);
-        
+
         // TODO: Implement test runner
         let source = fs::read_to_string(&file)?;
         let tokens: Vec<_> = lexer::PositionalLexer::new(&source).collect();
         let mut parser = parser::Parser::new(tokens);
         let ast = parser.parse()?;
-        
-        println!("Test file parsed successfully with {} items", ast.items.len());
+
+        println!(
+            "Test file parsed successfully with {} items",
+            ast.items.len()
+        );
     }
-    
+
     Ok(())
 }
 
 fn check_command(files: Vec<PathBuf>) -> Result<()> {
     println!("Checking syntax for {} files", files.len());
-    
+
     for file in files {
         if !file.exists() {
             eprintln!("Warning: File {:?} does not exist", file);
             continue;
         }
-        
+
         let source = fs::read_to_string(&file)?;
-        
+
         // Lex the source
         let tokens: Vec<_> = lexer::PositionalLexer::new(&source).collect();
-        
+
         // Parse the source
         let mut parser = parser::Parser::new(tokens);
         match parser.parse() {
@@ -287,6 +333,68 @@ fn check_command(files: Vec<PathBuf>) -> Result<()> {
             }
         }
     }
-    
+
+    Ok(())
+}
+
+fn apex_command(input: PathBuf) -> Result<()> {
+    println!("Evaluating APEXLANG source: {:?}", input);
+    let source = fs::read_to_string(&input)?;
+    let value = apexlang::evaluate_source(&source)?;
+    println!("Result: {}", value);
+    Ok(())
+}
+
+fn apex_viz_command(input: PathBuf, output: Option<PathBuf>, format: VizFormat) -> Result<()> {
+    println!("Visualizing APEXLANG source: {:?}", input);
+    let source = fs::read_to_string(&input)?;
+    let dot = apexlang::visualize_source(&source)?;
+    match format {
+        VizFormat::Dot => {
+            if let Some(path) = output {
+                fs::write(&path, dot)?;
+                println!("Graphviz DOT written to {:?}", path);
+            } else {
+                println!("{}", dot);
+            }
+        }
+        _ => {
+            let path = output.ok_or_else(|| {
+                anyhow::anyhow!(
+                    "--output is required when emitting {} via Graphviz",
+                    format.graphviz_flag()
+                )
+            })?;
+            render_graphviz(&dot, path.as_path(), format)?;
+            println!(
+                "Graphviz '{}' rendering written to {:?}",
+                format.graphviz_flag(),
+                path
+            );
+        }
+    }
+    Ok(())
+}
+
+fn render_graphviz(dot: &str, path: &Path, format: VizFormat) -> Result<()> {
+    let mut child = Command::new("dot")
+        .arg(format!("-T{}", format.graphviz_flag()))
+        .arg("-o")
+        .arg(path)
+        .stdin(Stdio::piped())
+        .spawn()
+        .map_err(|err| anyhow::anyhow!("Failed to invoke 'dot': {}", err))?;
+    child
+        .stdin
+        .as_mut()
+        .ok_or_else(|| anyhow::anyhow!("Failed to access Graphviz stdin"))?
+        .write_all(dot.as_bytes())?;
+    let status = child.wait()?;
+    if !status.success() {
+        return Err(anyhow::anyhow!(
+            "Graphviz 'dot' exited with status {}",
+            status
+        ));
+    }
     Ok(())
 }

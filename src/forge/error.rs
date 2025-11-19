@@ -1,12 +1,12 @@
 //! Error library for AFNS
-//! 
+//!
 //! This module provides error handling including:
 //! - Custom Error Types
 //! - Error Propagation
 //! - Result Type
 
-use std::fmt;
 use std::error::Error as StdError;
+use std::fmt;
 
 /// Custom error types
 #[derive(Debug)]
@@ -243,20 +243,24 @@ pub struct AFNSErrorPropagation;
 
 impl AFNSErrorPropagation {
     /// Propagate an error with context
-    pub fn propagate_with_context<T, E>(result: Result<T, E>, context: String) -> Result<T, AFNSError>
+    pub fn propagate_with_context<T, E>(
+        result: Result<T, E>,
+        context: String,
+    ) -> Result<T, AFNSError>
     where
         E: Into<AFNSError>,
     {
         result.map_err(|e| {
             let error: AFNSError = e.into();
-            AFNSErrorContext::new(error)
-                .with_context(context)
-                .into()
+            AFNSErrorContext::new(error).with_context(context).into()
         })
     }
 
     /// Propagate an error with multiple contexts
-    pub fn propagate_with_contexts<T, E>(result: Result<T, E>, contexts: Vec<String>) -> Result<T, AFNSError>
+    pub fn propagate_with_contexts<T, E>(
+        result: Result<T, E>,
+        contexts: Vec<String>,
+    ) -> Result<T, AFNSError>
     where
         E: Into<AFNSError>,
     {

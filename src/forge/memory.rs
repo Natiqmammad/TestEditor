@@ -1,15 +1,15 @@
 //! Memory library for AFNS
-//! 
+//!
 //! This module provides memory management including:
 //! - Memory Allocation
 //! - Management
 //! - Reference Counting
 
 use std::alloc::{GlobalAlloc, Layout, System};
+use std::cell::RefCell;
+use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use std::rc::Rc;
-use std::cell::RefCell;
 
 /// Memory allocator statistics
 #[derive(Debug, Default)]
@@ -47,7 +47,12 @@ impl AFNSMemoryStats {
             if current <= peak {
                 break;
             }
-            match self.peak.compare_exchange_weak(peak, current, Ordering::Relaxed, Ordering::Relaxed) {
+            match self.peak.compare_exchange_weak(
+                peak,
+                current,
+                Ordering::Relaxed,
+                Ordering::Relaxed,
+            ) {
                 Ok(_) => break,
                 Err(new_peak) => peak = new_peak,
             }
@@ -78,12 +83,12 @@ unsafe impl GlobalAlloc for AFNSAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         let size = layout.size();
         let ptr = System.alloc(layout);
-        
+
         if !ptr.is_null() {
             self.stats.allocated.fetch_add(size, Ordering::Relaxed);
             self.stats.update_peak(self.stats.current());
         }
-        
+
         ptr
     }
 
@@ -265,12 +270,16 @@ impl<T> AFNSArcCell<T> {
 
     /// Get a reference to the inner value
     pub fn lock(&self) -> Result<std::sync::MutexGuard<T>, String> {
-        self.inner.lock().map_err(|e| format!("Failed to lock: {}", e))
+        self.inner
+            .lock()
+            .map_err(|e| format!("Failed to lock: {}", e))
     }
 
     /// Try to get a reference to the inner value
     pub fn try_lock(&self) -> Result<std::sync::MutexGuard<T>, String> {
-        self.inner.try_lock().map_err(|e| format!("Failed to try lock: {}", e))
+        self.inner
+            .try_lock()
+            .map_err(|e| format!("Failed to try lock: {}", e))
     }
 }
 

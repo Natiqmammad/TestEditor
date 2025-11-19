@@ -1,5 +1,5 @@
 //! Concurrency library for AFNS
-//! 
+//!
 //! This module provides concurrency primitives including:
 //! - Thread: Thread management
 //! - Mutex: Mutual exclusion
@@ -7,8 +7,8 @@
 //! - Channel: Message passing
 //! - Atomic: Atomic operations
 
-use std::sync::{Arc, Mutex, RwLock, mpsc};
 use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, Ordering};
+use std::sync::{mpsc, Arc, Mutex, RwLock};
 use std::thread;
 use std::time::Duration;
 
@@ -28,7 +28,7 @@ impl AFNSThread {
     {
         let id = uuid::Uuid::new_v4().to_string();
         let handle = thread::spawn(f);
-        
+
         Self {
             handle: Some(handle),
             id,
@@ -42,11 +42,8 @@ impl AFNSThread {
         F: FnOnce() + Send + 'static,
     {
         let id = uuid::Uuid::new_v4().to_string();
-        let handle = thread::Builder::new()
-            .name(name.clone())
-            .spawn(f)
-            .unwrap();
-        
+        let handle = thread::Builder::new().name(name.clone()).spawn(f).unwrap();
+
         Self {
             handle: Some(handle),
             id,
@@ -95,14 +92,16 @@ impl<T> AFNSMutex<T> {
 
     /// Lock the mutex
     pub fn lock(&self) -> Result<AFNSMutexGuard<T>, String> {
-        self.inner.lock()
+        self.inner
+            .lock()
             .map(|guard| AFNSMutexGuard { guard })
             .map_err(|_| "Mutex lock failed".to_string())
     }
 
     /// Try to lock the mutex
     pub fn try_lock(&self) -> Result<AFNSMutexGuard<T>, String> {
-        self.inner.try_lock()
+        self.inner
+            .try_lock()
             .map(|guard| AFNSMutexGuard { guard })
             .map_err(|_| "Mutex try_lock failed".to_string())
     }
@@ -158,28 +157,32 @@ impl<T> AFNSRwLock<T> {
 
     /// Acquire a read lock
     pub fn read(&self) -> Result<AFNSRwLockReadGuard<T>, String> {
-        self.inner.read()
+        self.inner
+            .read()
             .map(|guard| AFNSRwLockReadGuard { guard })
             .map_err(|_| "RwLock read lock failed".to_string())
     }
 
     /// Acquire a write lock
     pub fn write(&self) -> Result<AFNSRwLockWriteGuard<T>, String> {
-        self.inner.write()
+        self.inner
+            .write()
             .map(|guard| AFNSRwLockWriteGuard { guard })
             .map_err(|_| "RwLock write lock failed".to_string())
     }
 
     /// Try to acquire a read lock
     pub fn try_read(&self) -> Result<AFNSRwLockReadGuard<T>, String> {
-        self.inner.try_read()
+        self.inner
+            .try_read()
             .map(|guard| AFNSRwLockReadGuard { guard })
             .map_err(|_| "RwLock try_read failed".to_string())
     }
 
     /// Try to acquire a write lock
     pub fn try_write(&self) -> Result<AFNSRwLockWriteGuard<T>, String> {
-        self.inner.try_write()
+        self.inner
+            .try_write()
             .map(|guard| AFNSRwLockWriteGuard { guard })
             .map_err(|_| "RwLock try_write failed".to_string())
     }
@@ -254,25 +257,29 @@ impl<T> AFNSChannel<T> {
 
     /// Send a message
     pub fn send(&self, message: T) -> Result<(), String> {
-        self.sender.send(message)
+        self.sender
+            .send(message)
             .map_err(|_| "Channel send failed".to_string())
     }
 
     /// Receive a message
     pub fn recv(&self) -> Result<T, String> {
-        self.receiver.recv()
+        self.receiver
+            .recv()
             .map_err(|_| "Channel receive failed".to_string())
     }
 
     /// Try to receive a message
     pub fn try_recv(&self) -> Result<T, String> {
-        self.receiver.try_recv()
+        self.receiver
+            .try_recv()
             .map_err(|e| format!("Channel try_receive failed: {:?}", e))
     }
 
     /// Receive a message with timeout
     pub fn recv_timeout(&self, timeout: Duration) -> Result<T, String> {
-        self.receiver.recv_timeout(timeout)
+        self.receiver
+            .recv_timeout(timeout)
             .map_err(|e| format!("Channel receive timeout: {:?}", e))
     }
 
@@ -300,7 +307,8 @@ pub struct AFNSChannelSender<T> {
 impl<T> AFNSChannelSender<T> {
     /// Send a message
     pub fn send(&self, message: T) -> Result<(), String> {
-        self.sender.send(message)
+        self.sender
+            .send(message)
             .map_err(|_| "Channel send failed".to_string())
     }
 }
@@ -314,19 +322,22 @@ pub struct AFNSChannelReceiver<'a, T> {
 impl<'a, T> AFNSChannelReceiver<'a, T> {
     /// Receive a message
     pub fn recv(&self) -> Result<T, String> {
-        self.receiver.recv()
+        self.receiver
+            .recv()
             .map_err(|_| "Channel receive failed".to_string())
     }
 
     /// Try to receive a message
     pub fn try_recv(&self) -> Result<T, String> {
-        self.receiver.try_recv()
+        self.receiver
+            .try_recv()
             .map_err(|e| format!("Channel try_receive failed: {:?}", e))
     }
 
     /// Receive a message with timeout
     pub fn recv_timeout(&self, timeout: Duration) -> Result<T, String> {
-        self.receiver.recv_timeout(timeout)
+        self.receiver
+            .recv_timeout(timeout)
             .map_err(|e| format!("Channel receive timeout: {:?}", e))
     }
 }

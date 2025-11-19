@@ -1,5 +1,5 @@
 //! Special types library for AFNS
-//! 
+//!
 //! This module provides special AFNS types including:
 //! - Timeline: Temporal data structure
 //! - Holo: Holographic data representation
@@ -15,9 +15,9 @@
 //! - CVar: Concurrent variable
 //! - Reactiv: Reactive programming
 
+use std::collections::HashMap;
 use std::fmt;
 use std::sync::{Arc, Mutex, RwLock};
-use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
@@ -102,7 +102,12 @@ where
     T: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Timeline({} events, time: {})", self.data.len(), self.current_time)
+        write!(
+            f,
+            "Timeline({} events, time: {})",
+            self.data.len(),
+            self.current_time
+        )
     }
 }
 
