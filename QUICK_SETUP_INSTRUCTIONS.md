@@ -39,7 +39,7 @@ gcc -o afns_gui_demo examples/afns_gui_demo.c `pkg-config --cflags --libs gtk+-3
 ### 🧪 Step 5: Test AFNS Interpreter
 ```bash
 # Run AFNS Flutter GUI test
-./target/debug/afns run examples/working_flutter_gui_app.afns
+./target/debug/afns run examples/working_flutter_gui_app.afml
 ```
 
 ---
@@ -80,13 +80,13 @@ gcc -o afns_gui_demo examples/afns_gui_demo.c `pkg-config --cflags --libs gtk+-3
 cargo build --bin afns
 
 # Test interpreter
-./target/debug/afns run examples/working_flutter_gui_app.afns
+./target/debug/afns run examples/working_flutter_gui_app.afml
 
 # GUI testing
 ./afns_gui_demo
 
 # Add new features, rebuild, test cycle
-cargo build --bin afns && ./target/debug/afns run examples/new_feature.afns
+cargo build --bin afns && ./target/debug/afns run examples/new_feature.afml
 ```
 
 ---
@@ -95,7 +95,7 @@ cargo build --bin afns && ./target/debug/afns run examples/new_feature.afns
 - `src/main.rs` - AFNS CLI entry point
 - `src/interpreter/mod.rs` - Runtime execution engine
 - `examples/afns_gui_demo.c` - GTK GUI demonstration
-- `examples/working_flutter_gui_app.afns` - AFNS GUI test program
+- `examples/working_flutter_gui_app.afml` - AFNS GUI test program
 - `AI_CONTINUATION_PROMPT.md` - Complete AI assistant instructions
 
 **🎯 Focus: Making GUI applications WORK, not just console output!**

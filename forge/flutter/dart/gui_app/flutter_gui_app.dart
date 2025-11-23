@@ -154,10 +154,10 @@ class AFNSFlutterGUIApp {
     _listBoxes = [
       FlutterListBox(
         items: [
-          'main.afns',
-          'utils.afns',
-          'components.afns',
-          'business_logic.afns',
+          'main.afml',
+          'utils.afml',
+          'components.afml',
+          'business_logic.afml',
         ],
         x: 50,
         y: 250,
@@ -207,13 +207,13 @@ class AFNSFlutterGUIApp {
   // 🎯 Button Event Handlers
   static void _handleSaveButton() {
     print('💾 Save button clicked - Saving AFNS project...');
-    _displayDialog('Save Project', 'Project saved successfully to AFNSProject.afns');
+    _displayDialog('Save Project', 'Project saved successfully to AFNSProject.afml');
     _statusBar?.updateMessage('Project saved successfully');
   }
   
   static void _handleLoadButton() {
     print('📂 Load button clicked - Loading AFNS project...');
-    _displayDialog('Load Project', 'Project loaded from AFNSProject.afns');
+    _displayDialog('Load Project', 'Project loaded from AFNSProject.afml');
     _statusBar?.updateMessage('Project loaded successfully');
   }
   

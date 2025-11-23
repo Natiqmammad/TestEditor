@@ -90,10 +90,10 @@ afns_compiler/
 ```
 
 ### **🎨 Working Application Examples:**
-- ✅ `simple_production.afns` - Business management system
-- ✅ `flutter_minimal.afns` - Flutter integration demo
-- ✅ `maximum_performance_demo.afns` - Optimization showcase
-- ✅ `flutter_simple_demo.afns` - Cross-platform demo
+- ✅ `simple_production.afml` - Business management system
+- ✅ `flutter_minimal.afml` - Flutter integration demo
+- ✅ `maximum_performance_demo.afml` - Optimization showcase
+- ✅ `flutter_simple_demo.afml` - Cross-platform demo
 - ✅ Multiple enterprise business applications
 
 ---

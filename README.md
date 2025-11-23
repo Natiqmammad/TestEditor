@@ -212,7 +212,7 @@ cargo install --path .
 ## Quick Start
 
 ### Hello World
-```afns
+```afml
 fun apex() {
     var message::string = "Hello, ApexForge NightScript!";
     println(message);
@@ -220,7 +220,7 @@ fun apex() {
 ```
 
 ### Function with Parameters
-```afns
+```afml
 fun greet(name::string) -> string {
     var greeting::string = "Hello, " + name + "!";
     return greeting;
@@ -234,7 +234,7 @@ fun apex() {
 ```
 
 ### Using Collections
-```afns
+```afml
 import forge::collections::*;
 
 fun apex() {
@@ -249,7 +249,7 @@ fun apex() {
 ```
 
 ### Special Types
-```afns
+```afml
 import forge::types::*;
 
 fun apex() {
@@ -268,16 +268,16 @@ fun apex() {
 ### AFNS Compiler (`afns`)
 ```bash
 # Build a source file
-afns build -i hello.afns -o hello.exe
+afns build -i hello.afml -o hello.exe
 
 # Run a source file directly
-afns run hello.afns
+afns run hello.afml
 
 # Check syntax
-afns check hello.afns
+afns check hello.afml
 
 # Format code
-afns fmt hello.afns
+afns fmt hello.afml
 
 # Run tests
 afns test
@@ -307,10 +307,10 @@ afpm test
 ## Examples
 
 Check the `examples/` directory for more comprehensive examples:
-- `hello_world.afns` - Basic syntax and functions
-- `primitives.afns` - Primitive types and methods
-- `collections.afns` - Collection types usage
-- `special_types.afns` - Special AFNS types
+- `hello_world.afml` - Basic syntax and functions
+- `primitives.afml` - Primitive types and methods
+- `collections.afml` - Collection types usage
+- `special_types.afml` - Special AFNS types
 
 ## Language Design Principles
 

@@ -46,7 +46,7 @@ Ready Dart     Rust FFI        Complete Library     Working GUI App
 ## 🎨 **WORKING AFNS FLUTTER GUI APPLICATION**
 
 ### **✅ SUCCESSFULLY CREATED & TESTED:**
-- **📁 File**: `examples/working_flutter_gui_app.afns`
+- **📁 File**: `examples/working_flutter_gui_app.afml`
 - **📊 Parse Status**: ✅ **SUCCESSFUL** (16 AST items)
 - **⚡ Compilation**: ✅ **WORKING** (< 5ms)
 - **🎯 LLVM IR**: ✅ **GENERATED** (`flutter_gui_complete.ll`)
@@ -54,7 +54,7 @@ Ready Dart     Rust FFI        Complete Library     Working GUI App
 ### **🚀 APPLICATION FEATURES:**
 
 #### **GUI Components:**
-```afns
+```afml
 ✅ FlutterWindow - Professional window management
 ✅ FlutterButton - Interactive buttons with handlers
 ✅ FlutterTextField - Text input fields
@@ -64,7 +64,7 @@ Ready Dart     Rust FFI        Complete Library     Working GUI App
 ```
 
 #### **Business Logic:**
-```afns
+```afml
 ✅ flutter_init() - Platform initialization
 ✅ flutter_handle_save() - Save project functionality
 ✅ flutter_handle_load() - Load project functionality  
@@ -74,7 +74,7 @@ Ready Dart     Rust FFI        Complete Library     Working GUI App
 ```
 
 #### **Complete Workflow:**
-```afns
+```afml
 ✅ setup_flutter_gui() - Main GUI setup
 ✅ setup_flutter_inputs() - Input components
 ✅ setup_flutter_lists() - List components
@@ -142,8 +142,8 @@ Ready Dart     Rust FFI        Complete Library     Working GUI App
 
 ```bash
 # Successfully Tested Commands:
-./target/debug/afns run examples/working_flutter_gui_app.afns
-./target/debug/afns build --input examples/working_flutter_gui_app.afns --output flutter_gui_complete.ll
+./target/debug/afns run examples/working_flutter_gui_app.afml
+./target/debug/afns build --input examples/working_flutter_gui_app.afml --output flutter_gui_complete.ll
 ```
 
 **✅ Complete Output Generated:**
@@ -176,7 +176,7 @@ Ready Dart     Rust FFI        Complete Library     Working GUI App
 
 ### **🎨 AFNS ŞİMDİ SADƏCİK AŞAĞIDAKİLƏRİ EDƏ BİLİR:**
 
-```afns
+```afml
 // Professional GUI Applications
 flutter_create_window("main", "My App", 1024, 768);
 flutter_create_button("save_btn", "Save", 50, 50);

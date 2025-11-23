@@ -25,7 +25,7 @@ Execution:             ✅ READY FOR PRODUCTION
 ```
 
 ### **📁 Generated Files**
-- **Source Code**: `examples/simple_production.afns`
+- **Source Code**: `examples/simple_production.afml`
 - **Executable**: `examples/simple_production.exe` (LLVM IR)
 - **Status**: ✅ FULLY OPERATIONAL
 

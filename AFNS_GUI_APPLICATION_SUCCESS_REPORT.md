@@ -19,7 +19,7 @@
 ### **📁 Files Created:**
 ```
 📁 AFNS GUI Application Files:
-├── examples/minimal_gui_app.afns          # Main GUI Application
+├── examples/minimal_gui_app.afml          # Main GUI Application
 ├── afns_flutter/afns_integration/         # Direct Flutter Integration
 │   ├── engine/afns_engine.cc              # Native Engine Extension
 │   ├── dart_runtime/afns_runtime.dart    # Dart Runtime Integration
@@ -33,7 +33,7 @@
 ## 🎨 **GUI APPLICATION FEATURES**
 
 ### **🚀 Core GUI Components:**
-```afns
+```afml
 ✅ Window Management
 ✅ Button Components
 ✅ TextField Components
@@ -43,7 +43,7 @@
 ```
 
 ### **💼 Business Logic Modules:**
-```afns
+```afml
 ✅ User Management System
 ✅ Product Catalog System
 ✅ Finance Calculator
@@ -52,7 +52,7 @@
 ```
 
 ### **🔧 Technical Features:**
-```afns
+```afml
 ✅ Function Overloading Support
 ✅ Type System (String, i32, f64, bool)
 ✅ String Concatenation
@@ -120,7 +120,7 @@
 ## 🔥 **PROFESSIONAL FEATURES DEMONSTRATED**
 
 ### **🎨 GUI Application Capabilities:**
-```afns
+```afml
 // Window Management
 create_window("AFNS Business Suite", 1024, 768)
 
@@ -140,7 +140,7 @@ add_product(name: string, price: f64) -> string
 ```
 
 ### **💼 Enterprise Modules:**
-```afns
+```afml
 👥 User Management System:
 ├── Add users with email validation
 ├── Display user lists

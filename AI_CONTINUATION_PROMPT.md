@@ -70,7 +70,7 @@ You are continuing development of "ApexForge NightScript (AFNS)" - a hybrid prog
 2. **AFNS Language Testing**:
    ```bash
    # Test AFNS interpreter
-   ./target/debug/afns run examples/working_flutter_gui_app.afns
+   ./target/debug/afns run examples/working_flutter_gui_app.afml
    ```
 
 3. **Flutter Runtime Integration**:
@@ -93,13 +93,13 @@ afns_compiler/
 │   └── forge/flutter.rs     # Flutter integration
 ├── examples/
 │   ├── afns_gui_demo.c      # GTK GUI demonstration
-│   └── working_flutter_gui_app.afns  # AFNS GUI test
+│   └── working_flutter_gui_app.afml  # AFNS GUI test
 ├── forge/flutter/           # Flutter integration files
 └── Cargo.toml               # Rust dependencies
 ```
 
 **Key AFNS Syntax Examples:**
-```afns
+```afml
 // Function definition
 fun greet(name: string) -> string {
     return "Hello " + name
@@ -129,10 +129,10 @@ fun check value {
 cargo build --bin afns
 
 # Run AFNS program
-./target/debug/afns run examples/file.afns
+./target/debug/afns run examples/file.afml
 
 # Generate LLVM IR
-./target/debug/afns build examples/file.afns -o output.ll --target llvm
+./target/debug/afns build examples/file.afml -o output.ll --target llvm
 
 # Build and run GTK GUI demo
 gcc -o afns_gui_demo examples/afns_gui_demo.c `pkg-config --cflags --libs gtk+-3.0`
@@ -142,7 +142,7 @@ gcc -o afns_gui_demo examples/afns_gui_demo.c `pkg-config --cflags --libs gtk+-3
 #### DEVELOPMENT WORKFLOW:
 
 1. **Always start with**: `cargo build --bin afns` to ensure compiler works
-2. **Test changes**: Run `./target/debug/afns run examples/working_flutter_gui_app.afns`
+2. **Test changes**: Run `./target/debug/afns run examples/working_flutter_gui_app.afml`
 3. **GUI testing**: Build and run GTK demo to verify Flutter functions
 4. **Feature addition**: Extend interpreter, parser, or flutter module as needed
 

@@ -1,12 +1,12 @@
 === DETAILED PERFORMANCE ANALYSIS ===
 Files Compilation Performance:
 
-File: basic_demo_only.afns
-489 examples/basic_demo_only.afns
+File: basic_demo_only.afml
+489 examples/basic_demo_only.afml
 447 examples/basic_demo_only.exe
 ---
-File: final_comprehensive_demo.afns
-2400 examples/final_comprehensive_demo.afns
+File: final_comprehensive_demo.afml
+2400 examples/final_comprehensive_demo.afml
 1616 examples/final_comprehensive_demo.exe
 ---
 === ARCHITECTURAL ANALYSIS ===
