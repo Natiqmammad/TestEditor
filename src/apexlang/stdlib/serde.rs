@@ -37,6 +37,8 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!("from_bytes", from_bytes);
     add!("to_base64", to_base64);
     add!("from_base64", from_base64);
+    add!("to_csv", to_csv);
+    add!("from_csv", from_csv);
 
     registry.register_module("serde", functions);
 }
@@ -180,6 +182,89 @@ fn from_base64(args: &[Value]) -> Result<Value, ApexError> {
     let json: JsonValue = serde_json::from_slice(&bytes)
         .map_err(|err| ApexError::new(format!("serde.from_base64 decode failed: {}", err)))?;
     json_value_to_value(&json)
+}
+
+fn to_csv(args: &[Value]) -> Result<Value, ApexError> {
+    let rows = args
+        .get(0)
+        .ok_or_else(|| ApexError::new("serde.to_csv expects a tuple of rows"))?;
+    let mut csv = String::new();
+
+    match rows {
+        Value::Tuple(rows) => {
+            for (index, row) in rows.iter().enumerate() {
+                if index > 0 {
+                    csv.push('\n');
+                }
+                let cells: Vec<Value> = match row {
+                    Value::Tuple(cols) => cols.clone(),
+                    other => vec![other.clone()],
+                };
+                for (cell_index, cell) in cells.iter().enumerate() {
+                    if cell_index > 0 {
+                        csv.push(',');
+                    }
+                    write_csv_cell(&mut csv, cell);
+                }
+            }
+        }
+        other => {
+            write_csv_cell(&mut csv, other);
+        }
+    }
+
+    Ok(Value::String(csv))
+}
+
+fn from_csv(args: &[Value]) -> Result<Value, ApexError> {
+    let text = expect_string_arg(args, 0, "serde.from_csv")?;
+    let mut rows: Vec<Value> = Vec::new();
+    for line in text.lines() {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let mut cols: Vec<Value> = Vec::new();
+        for cell in line.split(',') {
+            let trimmed = cell.trim();
+            if let Ok(int_val) = BigInt::from_str(trimmed) {
+                cols.push(Value::Int(int_val));
+            } else if let Ok(float_val) = trimmed.parse::<f64>() {
+                cols.push(Value::Number(float_val));
+            } else if let Ok(boolean) = trimmed.parse::<bool>() {
+                cols.push(Value::Bool(boolean));
+            } else {
+                cols.push(Value::String(trimmed.trim_matches('"').to_string()));
+            }
+        }
+        rows.push(Value::Tuple(cols));
+    }
+    Ok(Value::Tuple(rows))
+}
+
+fn write_csv_cell(buffer: &mut String, value: &Value) {
+    let mut rendered = match value {
+        Value::Int(int_val) => int_val.to_string(),
+        Value::Number(num) => num.to_string(),
+        Value::Bool(flag) => flag.to_string(),
+        Value::String(text) => text.clone(),
+        Value::Tuple(items) => {
+            let inner: Vec<String> = items.iter().map(|v| format!("{}", v)).collect();
+            inner.join("|")
+        }
+    };
+
+    let needs_quotes = rendered.contains(',') || rendered.contains('\n') || rendered.contains('"');
+    if rendered.contains('"') {
+        rendered = rendered.replace('"', "\"\"");
+    }
+
+    if needs_quotes {
+        buffer.push('"');
+        buffer.push_str(&rendered);
+        buffer.push('"');
+    } else {
+        buffer.push_str(&rendered);
+    }
 }
 
 fn value_to_json_value(value: &Value) -> JsonValue {
@@ -1013,6 +1098,35 @@ mod tests {
         let json = to_json(&[value.clone()]).expect("serialize");
         let rebuilt = from_json(&[json]).expect("deserialize");
         assert_eq!(value, rebuilt);
+    }
+
+    #[test]
+    fn csv_round_trips_basic_rows() {
+        let rows = Value::Tuple(vec![
+            Value::Tuple(vec![Value::Int(1.into()), Value::String("alpha".into())]),
+            Value::Tuple(vec![Value::Bool(true), Value::Number(3.5)]),
+        ]);
+
+        let csv = to_csv(&[rows.clone()]).expect("to_csv");
+        let csv_text = match csv {
+            Value::String(text) => text,
+            _ => panic!("expected string"),
+        };
+
+        assert!(csv_text.contains("alpha"));
+
+        let parsed = from_csv(&[Value::String(csv_text)]).expect("from_csv");
+        if let Value::Tuple(lines) = parsed {
+            assert_eq!(lines.len(), 2);
+            if let Value::Tuple(first) = &lines[0] {
+                assert_eq!(first[0], Value::Int(1.into()));
+                assert_eq!(first[1], Value::String("alpha".into()));
+            } else {
+                panic!("expected tuple row");
+            }
+        } else {
+            panic!("expected tuple of rows");
+        }
     }
 
     #[test]

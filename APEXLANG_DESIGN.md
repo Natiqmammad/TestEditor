@@ -90,8 +90,8 @@ pub fn gemm(m: usize, n: usize, k: usize,
 ## 12. Standard Library (MVP)
 - **Core**: `mem`, `ptr`, `simd`, `atomics`.
 - **Math**: `complex`, `stats`, `linalg`, `fft`.
-- **Structural utilities**: `structs` for value-level clones, tuple replacement, and concatenation so immutable data can be reshaped without side effects.
-- **Serialization**: `serde` with JSON/YAML/XML/byte conversions to bridge ApexLang tuples into common interchange formats (documented further in `docs/SERDE_PLAYBOOK.md`).
+- **Structural utilities**: `structs` for value-level clones, deep clones, tuple replacement, appends, and concatenation so immutable data can be reshaped without side effects.
+- **Serialization**: `serde` with JSON/YAML/XML/CSV/byte conversions to bridge ApexLang tuples into common interchange formats (documented further in `docs/SERDE_PLAYBOOK.md`).
 - **Minimal IO**: Binary read/write with stubs when `no_std` is enabled.
 
 ## 13. Safety Model

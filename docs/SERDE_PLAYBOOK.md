@@ -67,6 +67,23 @@ Because JSON is a subset of YAML 1.2, the same pretty-printed JSON emitted by `s
 Each `<value>` element declares its type, and tuples contain `<item>` children whose first element is always another `<value>` nod
 e. `serde.from_xml(xml)` reverses the process and recovers the original tuple or primitive.
 
+## CSV helpers
+
+`serde.to_csv(rows)` treats the argument as either a tuple of rows (each row can itself be a tuple) or a single value and emits a comma-separated string. Fields containing commas, quotes, or newlines are quoted automatically, and nested tuples are stringified with `|` separators so the original structure is preserved. `serde.from_csv(text)` walks each line, parses integers, floats, and booleans when possible, and falls back to strings—returning a tuple of row tuples so ApexLang code can inspect or reshape the grid.
+
+```apex
+import serde;
+import structs;
+
+fn apex() {
+  let rows = ((1, "alpha"), (true, 3.5));
+  let csv = serde.to_csv(rows);
+  let restored = serde.from_csv(csv);
+  // append an extra cell without touching the original rows
+  return structs.copy_append(restored, "extra");
+}
+```
+
 ## Byte-oriented formats
 
 `serde.to_bytes(value)` encodes the JSON representation as a tuple of byte integers (0–255) so ApexLang code can ship complex str
@@ -91,6 +108,8 @@ fn apex() {
 The companion `structs` module adds value-level copy helpers:
 
 - `structs.copy(value)` → returns a clone of any value.
+- `structs.deep_clone(value)` → recursively duplicates nested tuples.
+- `structs.copy_append(tuple, value...)` → produce a new tuple with extra elements appended.
 - `structs.clone_tuple(tuple)` → explicitly clone tuple elements.
 - `structs.copy_replace(tuple, index, value)` → produce a new tuple with a single slot updated (original untouched).
 - `structs.tuple_concat(left, right)` → concatenate tuples without mutating inputs.

@@ -118,9 +118,9 @@ The `fs` module covers text/binary IO and directory management, while `os` repor
 
 ## Structural copies and serialization
 
-The `structs` module offers persistent-data ergonomics for tuples. `structs.copy(value)` clones any interpreter value, `structs.clone_tuple(tuple)` materializes a deep copy of the tuple contents, `structs.copy_replace(tuple, index, value)` returns a fresh tuple with a single slot replaced (leaving the original untouched), and `structs.tuple_concat(left, right)` splices tuples together without mutation.
+The `structs` module offers persistent-data ergonomics for tuples. `structs.copy(value)` clones any interpreter value, `structs.deep_clone(value)` recursively duplicates nested tuples, `structs.copy_append(tuple, value...)` extends tuple records without mutation, `structs.clone_tuple(tuple)` materializes a deep copy of the tuple contents, `structs.copy_replace(tuple, index, value)` returns a fresh tuple with a single slot replaced (leaving the original untouched), and `structs.tuple_concat(left, right)` splices tuples together without mutation.
 
-When data needs to cross process or module boundaries, the `serde` module encodes ApexLang values into JSON, pretty-printed JSON, YAML-compatible text, XML, or raw byte tuples (`serde.to_json`, `serde.pretty_json`, `serde.to_yaml`, `serde.to_xml`, `serde.to_bytes`) and reverses the process with the matching `from_*` helpers. Tuples containing `("key", value)` pairs serialize as JSON/YAML objects automatically, and the byte-tuple form is perfect for `mem.write_block` or async mailboxes. See [`docs/SERDE_PLAYBOOK.md`](SERDE_PLAYBOOK.md) for detailed mappings and examples.
+When data needs to cross process or module boundaries, the `serde` module encodes ApexLang values into JSON, pretty-printed JSON, YAML-compatible text, XML, CSV, or raw byte tuples (`serde.to_json`, `serde.pretty_json`, `serde.to_yaml`, `serde.to_xml`, `serde.to_csv`, `serde.to_bytes`) and reverses the process with the matching `from_*` helpers. Tuples containing `("key", value)` pairs serialize as JSON/YAML objects automatically, CSV helpers keep grid-shaped data human readable, and the byte-tuple form is perfect for `mem.write_block` or async mailboxes. See [`docs/SERDE_PLAYBOOK.md`](SERDE_PLAYBOOK.md) for detailed mappings and examples.
 
 ```apex
 import structs;
@@ -134,9 +134,13 @@ fn apex() {
     let update_entry = mem.tuple_get(update_source, 0);
     let patched = structs.copy_replace(record, 1, update_entry);
     let combined = structs.tuple_concat(record, patched);
-    let json = serde.pretty_json(combined);
+    let deep = structs.deep_clone(combined);
+    let appended = structs.copy_append(deep, ("csv", 3));
+    let json = serde.pretty_json(appended);
+    let csv = serde.to_csv(appended);
     let rebuilt = serde.from_json(json);
-    return btoi(rebuilt == combined);
+    let restored_csv = serde.from_csv(csv);
+    return btoi(rebuilt == appended) + btoi(restored_csv == appended);
 }
 ```
 
