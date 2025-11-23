@@ -1,6 +1,6 @@
 # ApexLang Natural Number Theorem Book
 
-ApexLang's `nats` module doubles as a miniature number-theory handbook. Every helper is designed to mirror the statement of a classical theorem so that you can translate proofs straight into code. This document collects those helpers, explains what they validate, and shows tiny ApexLang snippets you can paste into the interpreter or into `examples/apex/demo.apx`.
+ApexLang's `nats` module doubles as a miniature number-theory handbook. Every helper is designed to mirror the statement of a classical theorem so that you can translate proofs straight into code. This document collects those helpers, explains what they validate, and shows tiny ApexLang snippets you can paste into the interpreter or into `examples/apex/demo.afml`.
 
 ## How to Read This Book
 - **Statement** summarizes the mathematical result the helper enforces.

@@ -336,6 +336,6 @@ fn apex() {
 - **Implementation**: Hand-written lexer, recursive-descent parser, BigInt-aware evaluator, and native-function registry under `src/apexlang/`.
 - **Usage**:
   ```bash
-  cargo run --bin afns -- apex --input examples/apex/demo.apx
+  cargo run --bin afns -- apex --input examples/apex/demo.afml
   ```
 - **Result**: Prints the computed result of `fn apex` on stdout, enabling rapid experimentation with language semantics and mathematical algorithms.

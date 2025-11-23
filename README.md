@@ -2,6 +2,8 @@
 
 ApexForge NightScript is a hybrid programming language designed for system programming and high-level applications. It combines the performance of low-level languages with the productivity of high-level languages, featuring a unique syntax and comprehensive type system.
 
+Core conventions follow the AFNS "Reborn" vision: sources carry the `.afml` extension, entry points live in `fun apex()` (or `async fun apex()`), and the standard library lives under the `forge` namespace (for example `forge.math`, `forge.net`, `forge.android`).
+
 ## APEXLANG Design Exploration
 
 In addition to AFNS, the repository now tracks the design of **APEXLANG**, a low-level systems language targeting deterministic and high-performance mathematical workloads. Review the full specification, including syntax snapshots, compilation pipeline, and roadmap, in [`APEXLANG_DESIGN.md`](APEXLANG_DESIGN.md).
@@ -104,12 +106,12 @@ Refer to [`docs/FRACTIONS_PLAYBOOK.md`](docs/FRACTIONS_PLAYBOOK.md) for narrativ
 For structural copies and serialization recipes—including object-style tuple encodings, XML round trips, and byte-payload shuttling—see [`docs/SERDE_PLAYBOOK.md`](docs/SERDE_PLAYBOOK.md).
 
 ```bash
-cargo run --bin afns -- apex --input examples/apex/demo.apx
+cargo run --bin afns -- apex --input examples/apex/demo.afml
 ```
 
 The example program combines mutable state and standard-library calls:
 
-```apex
+```afml
 import math;
 import nats;
 import nats.btoi;
@@ -139,7 +141,7 @@ fn apex() {
     let signed = -270;
     let base = nats.abs_value(signed);
     let enriched = weighted_score(base);
-    // ...snip… see examples/apex/demo.apx for the full program that blends
+    // ...snip… see examples/apex/demo.afml for the full program that blends
     // nats/math/fractions helpers with asm, mem, structs, serde, async, fs,
     // os, net, proc, and signal utilities.
 }
@@ -148,9 +150,9 @@ fn apex() {
 Running the interpreter reports the computed result on stdout, making it easy to experiment with early language ideas and validate the growing mathematical toolchain. When you want to *see* what the interpreter is parsing, the visualization command can emit Graphviz DOT text or—when Graphviz is available—pipe the IR directly into `dot` for SVG/PNG output:
 
 ```bash
-cargo run --bin afns -- apex-viz --input examples/apex/demo.apx --output demo.dot
-cargo run --bin afns -- apex-viz --input examples/apex/demo.apx --output demo.svg --format svg
-cargo run --bin afns -- apex-viz --input examples/apex/demo.apx --output demo.png --format png
+cargo run --bin afns -- apex-viz --input examples/apex/demo.afml --output demo.dot
+cargo run --bin afns -- apex-viz --input examples/apex/demo.afml --output demo.svg --format svg
+cargo run --bin afns -- apex-viz --input examples/apex/demo.afml --output demo.png --format png
 ```
 
 The generated diagram highlights every function, statement, and expression edge, making it trivial to inspect evaluation order or handwave optimizations during the research phase.

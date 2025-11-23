@@ -225,4 +225,4 @@ fn apex() {
 }
 ```
 
-Refer to `examples/apex/demo.apx` for a fuller tour that blends these helpers with the math, natural-number, and fraction modules.
+Refer to `examples/apex/demo.afml` for a fuller tour that blends these helpers with the math, natural-number, and fraction modules.
