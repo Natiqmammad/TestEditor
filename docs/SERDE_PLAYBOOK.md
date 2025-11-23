@@ -84,21 +84,23 @@ fn apex() {
 }
 ```
 
-## Byte-oriented formats
+## Byte-oriented and binary formats
 
-`serde.to_bytes(value)` encodes the JSON representation as a tuple of byte integers (0–255) so ApexLang code can ship complex str
-uctures through the `mem` module, async mailboxes, or files without reaching for host-side libraries. `serde.from_bytes(tuple)` e
-xpects that tuple, rebuilds the JSON string, and returns the original value.
+`serde.to_bytes(value)` encodes the JSON representation as a tuple of byte integers (0–255) so ApexLang code can ship complex structures through the `mem` module, async mailboxes, or files without reaching for host-side libraries. `serde.from_bytes(tuple)` expects that tuple, rebuilds the JSON string, and returns the original value.
+
+`serde.to_bin(value)` performs the same tuple-of-bytes conversion using a compact binary encoding to shrink payloads for IPC or disk transfers. `serde.from_bin(tuple)` deserializes that binary blob back into an ApexLang value. The binary form stays interchangeable with the JSON-facing helpers, so teams can choose human-readable or size-focused representations per call site.
+
+Need to fit bytes into text? `serde.to_base64(value)` and `serde.from_base64(text)` bridge tuples through base64 strings for log-friendly payloads.
 
 ```apex
 import serde;
 import mem;
 
 fn apex() {
-  let tuple = serde.from_json("{\"name\":\"apex\",\"value\":42}");
-  let bytes = serde.to_bytes(tuple);
-  mem.write_block(mem.alloc_bytes(16), bytes);
-  let restored = serde.from_bytes(bytes);
+  let tuple = serde.from_json("{"name":"apex","value":42}");
+  let bin = serde.to_bin(tuple);
+  let restored = serde.from_bin(bin);
+  mem.write_block(mem.alloc_bytes(16), serde.to_bytes(tuple));
   return restored;
 }
 ```

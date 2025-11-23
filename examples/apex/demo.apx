@@ -329,13 +329,15 @@ fn apex() {
     let serde_pretty = serde.pretty_json(struct_seed);
     let serde_bytes = serde.to_bytes(struct_seed);
     let serde_bytes_round = serde.from_bytes(serde_bytes);
+    let serde_bin = serde.to_bin(struct_seed);
+    let serde_bin_round = serde.from_bin(serde_bin);
     let serde_xml_text = serde.to_xml(struct_seed);
     let serde_xml_round = serde.from_xml(serde_xml_text);
     let serde_yaml_text = serde.to_yaml(struct_seed);
     let serde_yaml_round = serde.from_yaml(serde_yaml_text);
     let serde_csv_text = serde.to_csv(((1, "alpha"), (2, "beta")));
     let serde_csv_round = serde.from_csv(serde_csv_text);
-    let serde_score = btoi(serde_round == struct_seed) + btoi(serde_bytes_round == struct_seed) + btoi(serde_xml_round == struct_seed) + btoi(serde_yaml_round == struct_seed) + btoi(mem.tuple_get(serde_csv_round, 0) == (1, "alpha"));
+    let serde_score = btoi(serde_round == struct_seed) + btoi(serde_bytes_round == struct_seed) + btoi(serde_bin_round == struct_seed) + btoi(serde_xml_round == struct_seed) + btoi(serde_yaml_round == struct_seed) + btoi(mem.tuple_get(serde_csv_round, 0) == (1, "alpha"));
     let serde_format_flag = btoi(serde_pretty == serde_pretty) + btoi(struct_appended != struct_chain);
     let classroom_ratio = fractions.fraction_add(1, 3, 1, 6);
     let ratio_decimal = fractions.fraction_to_decimal(classroom_ratio);

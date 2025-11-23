@@ -35,6 +35,8 @@ pub(super) fn register(registry: &mut NativeRegistry) {
     add!("from_xml", from_xml);
     add!("to_bytes", to_bytes);
     add!("from_bytes", from_bytes);
+    add!("to_bin", to_bin);
+    add!("from_bin", from_bin);
     add!("to_base64", to_base64);
     add!("from_base64", from_base64);
     add!("to_csv", to_csv);
@@ -143,6 +145,20 @@ fn to_bytes(args: &[Value]) -> Result<Value, ApexError> {
     ))
 }
 
+fn to_bin(args: &[Value]) -> Result<Value, ApexError> {
+    let json_value = args
+        .get(0)
+        .ok_or_else(|| ApexError::new("serde.to_bin expects a value"))?;
+    let mut bytes = Vec::new();
+    encode_value_binary(json_value, &mut bytes)?;
+    Ok(Value::Tuple(
+        bytes
+            .into_iter()
+            .map(|byte| Value::Int(BigInt::from(byte)))
+            .collect(),
+    ))
+}
+
 fn from_bytes(args: &[Value]) -> Result<Value, ApexError> {
     let tuple = expect_tuple_arg(args, 0, "serde.from_bytes")?;
     let mut bytes = Vec::with_capacity(tuple.len());
@@ -164,6 +180,35 @@ fn from_bytes(args: &[Value]) -> Result<Value, ApexError> {
     let json: JsonValue = serde_json::from_slice(&bytes)
         .map_err(|err| ApexError::new(format!("serde.from_bytes failed: {}", err)))?;
     json_value_to_value(&json)
+}
+
+fn from_bin(args: &[Value]) -> Result<Value, ApexError> {
+    let tuple = expect_tuple_arg(args, 0, "serde.from_bin")?;
+    let mut bytes = Vec::with_capacity(tuple.len());
+    for (index, value) in tuple.iter().enumerate() {
+        match value {
+            Value::Int(num) => bytes.push(num.to_u8().ok_or_else(|| {
+                ApexError::new(format!(
+                    "serde.from_bin expects 0-255 ints at position {}",
+                    index
+                ))
+            })?),
+            _ => {
+                return Err(ApexError::new(
+                    "serde.from_bin expects a tuple of byte integers",
+                ))
+            }
+        }
+    }
+
+    let mut cursor = 0;
+    let value = decode_value_binary(&bytes, &mut cursor)?;
+    if cursor != bytes.len() {
+        return Err(ApexError::new(
+            "serde.from_bin encountered trailing bytes after decoding",
+        ));
+    }
+    Ok(value)
 }
 
 fn to_base64(args: &[Value]) -> Result<Value, ApexError> {
@@ -239,6 +284,127 @@ fn from_csv(args: &[Value]) -> Result<Value, ApexError> {
         rows.push(Value::Tuple(cols));
     }
     Ok(Value::Tuple(rows))
+}
+
+fn encode_value_binary(value: &Value, out: &mut Vec<u8>) -> Result<(), ApexError> {
+    match value {
+        Value::Int(num) => {
+            out.push(0x01);
+            let mut bytes = num.to_signed_bytes_be();
+            if bytes.is_empty() {
+                bytes.push(0);
+            }
+            write_length(bytes.len(), out)?;
+            out.extend_from_slice(&bytes);
+        }
+        Value::Number(num) => {
+            out.push(0x02);
+            out.extend_from_slice(&num.to_bits().to_be_bytes());
+        }
+        Value::Bool(flag) => {
+            out.push(0x03);
+            out.push(if *flag { 1 } else { 0 });
+        }
+        Value::String(text) => {
+            out.push(0x04);
+            write_length(text.len(), out)?;
+            out.extend_from_slice(text.as_bytes());
+        }
+        Value::Tuple(items) => {
+            out.push(0x05);
+            write_length(items.len(), out)?;
+            for item in items {
+                encode_value_binary(item, out)?;
+            }
+        }
+    }
+    Ok(())
+}
+
+fn decode_value_binary(bytes: &[u8], cursor: &mut usize) -> Result<Value, ApexError> {
+    if *cursor >= bytes.len() {
+        return Err(ApexError::new(
+            "serde.from_bin reached the end of the buffer unexpectedly",
+        ));
+    }
+    let tag = bytes[*cursor];
+    *cursor += 1;
+    match tag {
+        0x01 => {
+            let len = read_length(bytes, cursor)?;
+            let end = *cursor + len;
+            if end > bytes.len() {
+                return Err(ApexError::new(
+                    "serde.from_bin int payload length exceeds buffer",
+                ));
+            }
+            let slice = &bytes[*cursor..end];
+            *cursor = end;
+            Ok(Value::Int(BigInt::from_signed_bytes_be(slice)))
+        }
+        0x02 => {
+            if *cursor + 8 > bytes.len() {
+                return Err(ApexError::new(
+                    "serde.from_bin number payload is incomplete",
+                ));
+            }
+            let mut buf = [0u8; 8];
+            buf.copy_from_slice(&bytes[*cursor..*cursor + 8]);
+            *cursor += 8;
+            Ok(Value::Number(f64::from_bits(u64::from_be_bytes(buf))))
+        }
+        0x03 => {
+            if *cursor >= bytes.len() {
+                return Err(ApexError::new("serde.from_bin bool payload is missing"));
+            }
+            let flag = bytes[*cursor] != 0;
+            *cursor += 1;
+            Ok(Value::Bool(flag))
+        }
+        0x04 => {
+            let len = read_length(bytes, cursor)?;
+            let end = *cursor + len;
+            if end > bytes.len() {
+                return Err(ApexError::new(
+                    "serde.from_bin string payload length exceeds buffer",
+                ));
+            }
+            let slice = &bytes[*cursor..end];
+            *cursor = end;
+            let text = String::from_utf8(slice.to_vec())
+                .map_err(|_| ApexError::new("serde.from_bin string payload is not UTF-8"))?;
+            Ok(Value::String(text))
+        }
+        0x05 => {
+            let len = read_length(bytes, cursor)?;
+            let mut items = Vec::with_capacity(len);
+            for _ in 0..len {
+                items.push(decode_value_binary(bytes, cursor)?);
+            }
+            Ok(Value::Tuple(items))
+        }
+        _ => Err(ApexError::new("serde.from_bin encountered an unknown tag")),
+    }
+}
+
+fn write_length(len: usize, out: &mut Vec<u8>) -> Result<(), ApexError> {
+    let len_u32 = u32::try_from(len).map_err(|_| {
+        ApexError::new("serde.to_bin payload is too large to encode with u32 lengths")
+    })?;
+    out.extend_from_slice(&len_u32.to_be_bytes());
+    Ok(())
+}
+
+fn read_length(bytes: &[u8], cursor: &mut usize) -> Result<usize, ApexError> {
+    if *cursor + 4 > bytes.len() {
+        return Err(ApexError::new(
+            "serde.from_bin length header extends beyond the buffer",
+        ));
+    }
+    let mut buf = [0u8; 4];
+    buf.copy_from_slice(&bytes[*cursor..*cursor + 4]);
+    *cursor += 4;
+    Ok(u32::from_be_bytes(buf) as usize)
 }
 
 fn write_csv_cell(buffer: &mut String, value: &Value) {
@@ -1173,6 +1339,17 @@ mod tests {
         let value = Value::Tuple(vec![Value::Int(5.into()), Value::Number(2.25)]);
         let text = to_base64(&[value.clone()]).expect("to base64");
         let rebuilt = from_base64(&[text]).expect("from base64");
+        assert_eq!(value, rebuilt);
+    }
+
+    #[test]
+    fn bin_round_trip_stays_compact_and_correct() {
+        let value = Value::Tuple(vec![
+            Value::Tuple(vec![Value::String("key".into()), Value::Bool(true)]),
+            Value::Tuple(vec![Value::String("count".into()), Value::Int(7.into())]),
+        ]);
+        let encoded = to_bin(&[value.clone()]).expect("to bin");
+        let rebuilt = from_bin(&[encoded]).expect("from bin");
         assert_eq!(value, rebuilt);
     }
 
